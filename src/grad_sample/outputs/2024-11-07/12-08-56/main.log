@@ -1,0 +1,33 @@
+[2024-11-07 12:08:56,273][root][INFO] - ---------------------------------------------------------------
+[2024-11-07 12:08:56,273][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-07 12:08:56,274][root][INFO] - Command line args:
+ansatz.alpha=7
+chunk_size_vmap=2
+[2024-11-07 12:08:56,274][root][INFO] - ---------------------------------------------------------------
+[2024-11-07 12:08:56,276][root][INFO] - Run config:
+device: '4'
+solver_fn:
+  _target_: netket.optimizer.solver.cholesky
+lr: 0.001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 2
+save_every: 10
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 7
+  param_dtype: complex
+task:
+  _target_: grad_sample.tasks.fullsum_analysis.FullSumPruning
+  deltadep: false
+
+[2024-11-07 12:08:56,276][root][INFO] - ---------------------------------------------------------------

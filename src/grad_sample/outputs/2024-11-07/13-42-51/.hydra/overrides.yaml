@@ -1,0 +1,4 @@
+- ansatz.alpha=5
+- model.L=4
+- task=train
+- device=3

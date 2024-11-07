@@ -1,0 +1,3 @@
+- ansatz.alpha=7
+- chunk_size_vmap=2
+- task.deltadep=True

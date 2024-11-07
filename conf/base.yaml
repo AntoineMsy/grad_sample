@@ -2,17 +2,15 @@ defaults:
   - _self_
   - model: ising
   - ansatz: rbm
-  - task: train
+  - task: analysis_dp
 
 device: "4"
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
 lr : 0.001
 diag_shift : 1.e-10
-n_iter : 500
+n_iter : 2000
 chunk_size_jac: 2
 chunk_size_vmap : 1
-save_every : 3
+save_every : 10
 base_path : /scratch/.amisery/grad_sample/
-
-

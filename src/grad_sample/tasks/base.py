@@ -15,7 +15,7 @@ class Problem:
 
         self.device = self.cfg.get("device")
         # set working device
-        os.environ["CUDA_VISIBLE_DEVICES"]= self.device
+        os.environ["CUDA_VISIBLE_DEVICES"]= str(self.device)
 
         # Instantiate model class (Ising, Heisenberg...)
         self.model = instantiate(self.cfg.model)

@@ -1,0 +1,3 @@
+- ansatz.alpha=6
+- task=train
+- n_iter=6000

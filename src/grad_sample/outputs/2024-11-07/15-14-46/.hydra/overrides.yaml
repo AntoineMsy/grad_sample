@@ -1,0 +1,6 @@
+- ansatz.alpha=2
+- model.L=4
+- task=train
+- device=3
+- lr=0.01
+- n_iter=500

@@ -10,58 +10,79 @@ import jax
 from tqdm import tqdm
 from grad_sample.tasks.base import Problem
 from utils.distances import curved_dist, fs_dist
-from utils.utils import cumsum
+from utils.utils import cumsum, find_closest_saved_vals
 import json
 
 from functools import partial
 
 class FullSumPruning(Problem):
     # pruning class, default to curved_dist method (distance in parameter space defined by the QGT)
-    def __init__(self, cfg: DictConfig, mode = "oneshot", recompute_stride = None):
+    def __init__(self, cfg: DictConfig, mode = "oneshot", recompute_stride = None, deltadep=False):
         # instantiate parent class
         super().__init__(cfg)
-        self.eval_s = jnp.linspace(1, self.n_iter//self.save_every - 1, 10).astype(int)
-        self.delta = 0.1 #delta used in imaginary time evolution
+        self.delta = 1e-4 #delta used in imaginary time evolution
 
-        self.delta_l = [1e-3, 1e-4, 1e-5, 1e-6]
+        self.delta_l = [10**n for n in range(-5,0)]
         self.mode = mode
+        self.deltadep = deltadep
         self.dimH = 2**self.model.Ns
         self.recompute_stride = recompute_stride
         self.save_dir = self.output_dir + "/{mode}"
-        self.chunk_size_vmap = None
+        self.chunk_size_vmap = self.dimH // self.chunk_size_vmap
+        # self.chunk_size_jac = self.dimH // self.chunk_size_jac
+
         self.vmap_change = nkjax.vmap_chunked(self.compute_change, in_axes=0, chunk_size = self.chunk_size_vmap) 
         self.out_dict = {}
-
-    def __call__(self):
-        self.set_strategy()
-        # for delta in self.delta_l:
-        #     self.delta = delta
-        #     self.out_dict[delta] = {}
-        #     for state_idx in tqdm(self.eval_s):
-        #         # todo : add delta dependency
-        #         self.load_state(state_idx)
-        #         in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
-
-        #         self.out_dict[delta][int(state_idx)] = {"in_idx": in_idx, "fid_vals": fid_vals, 
-        #                                     "dp_dist_ev": dp_dist_ev, "infid_ev": infid_ev, "vs_arr" : self.vstate_arr,
-        #                                     "pdf" : self.pdf, "Hloc" : self.Hloc,
-        #                                     "jac" : self.jacobian_orig}
-        for state_idx in tqdm(self.eval_s):
-            # todo : add delta dependency
-            self.load_state(state_idx)
-            in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
-
-            self.out_dict[int(state_idx)] = {"in_idx": in_idx, "fid_vals": fid_vals, 
-                                        "dp_dist_ev": dp_dist_ev, "infid_ev": infid_ev, "vs_arr" : self.vstate_arr,
-                                        "pdf" : self.pdf, "Hloc" : self.Hloc,
-                                        "jac" : self.jacobian_orig}
-        # save   
         log_opt = self.output_dir + ".log"
         data = json.load(open(log_opt))
         E=  data["Energy"]["Mean"]["real"]
-        self.out_dict["commons"] = {"save_every": self.save_every, "E_gs": self.E_gs, "E_err": jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs), "delta": self.delta}
-        jnp.savez(self.output_dir + f"/out_analysis_{self.mode}_{self.strategy}.npz", self.out_dict)
-        print("file saved at %s"%(self.output_dir + f"/out_analysis_{self.mode}_{self.strategy}.npz"))
+        E_err = jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs)
+        self.out_dict["commons"] = {"save_every": self.save_every, "E_gs": self.E_gs, "E_err": E_err, "delta": self.delta}
+        
+        # eval_s will be relative errors at every magnitude
+        # self.eval_s = jnp.linspace(1, self.n_iter//self.save_every - 1, 10).astype(int)
+        self.eval_s = find_closest_saved_vals(E_err, jnp.arange(len(E_err//10)), self.save_every)
+        self.delta_eval = jnp.ones(len(self.eval_s)) * 1e-3
+        self.delta_eval = self.delta_eval.at[:5].set(1e-4)
+        print(self.eval_s)
+
+    def __call__(self):
+        self.set_strategy()
+        if self.deltadep:
+            print("Analyzing delta dependency")
+            for delta in self.delta_l:
+                self.delta = delta
+                self.out_dict[delta] = {}
+                for state_idx in tqdm(self.eval_s):
+                    # todo : add delta dependency
+                    self.load_state(state_idx)
+                    in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
+
+                    self.out_dict[delta][int(state_idx)] = {"in_idx": in_idx, "fid_vals": fid_vals, 
+                                                "dp_dist_ev": dp_dist_ev, "infid_ev": infid_ev, "vs_arr" : self.vstate_arr,
+                                                "pdf" : self.pdf, "Hloc" : self.Hloc,
+                                                "jac" : self.jacobian_orig}
+                jnp.savez(self.output_dir + f"/out_analysis_{self.mode}_{self.strategy}_deltadep.npz", self.out_dict)
+                print("file saved at %s"%(self.output_dir + f"/out_analysis_{self.mode}_{self.strategy}_deltadep.npz"))
+
+        else:
+            k=0
+            for state_idx in tqdm(self.eval_s):
+                # todo : add delta dependency
+                if k > 4:
+                    self.delta = 1e-3
+                # self.delta = self.delta_eval[k].astype(float)
+                k+=1
+                self.load_state(state_idx)
+                in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
+                self.out_dict[int(state_idx)] = {"in_idx": in_idx, "fid_vals": fid_vals, 
+                                            "dp_dist_ev": dp_dist_ev, "infid_ev": infid_ev, "vs_arr" : self.vstate_arr,
+                                            "pdf" : self.pdf, "Hloc" : self.Hloc,
+                                            "jac" : self.jacobian_orig, "delta": self.delta}
+            # save   
+            
+            jnp.savez(self.output_dir + f"/out_analysis_{self.mode}_{self.strategy}.npz", self.out_dict)
+            print("file saved at %s"%(self.output_dir + f"/out_analysis_{self.mode}_{self.strategy}.npz"))
 
     def set_strategy(self):
         self.strategy = "curved_dist" 
