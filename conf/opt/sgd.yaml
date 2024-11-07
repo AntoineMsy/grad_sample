@@ -1,0 +1,3 @@
+_target_: optax.sgd
+learning_rate: 0.001
+# NOT USED !

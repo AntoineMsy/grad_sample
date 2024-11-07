@@ -1,0 +1,46 @@
+[2024-11-06 16:15:31,979][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 16:15:31,980][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-06 16:15:31,980][root][INFO] - Command line args:
+
+[2024-11-06 16:15:31,981][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 16:15:31,983][root][INFO] - Run config:
+device: '4'
+solver_fn:
+  _target_: netket.optimizer.solver.cholesky
+lr: 0.001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+save_every: 3
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 1
+  param_dtype: complex
+task:
+  _target_: grad_sample.tasks.fullsum_analysis.FullSumPruning
+
+[2024-11-06 16:15:31,983][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 16:15:34,724][jax._src.xla_bridge][INFO] - Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+[2024-11-06 16:15:34,726][jax._src.xla_bridge][INFO] - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+[2024-11-06 16:15:45,033][root][CRITICAL] - fori_loop() missing 1 required positional argument: 'init_val'
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/main.py", line 50, in main
+    task()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 42, in __call__
+    in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 186, in prune
+    jax.lax.fori_loop(1,len(in_idx), lambda i : self.prune_for(i, in_idx))
+TypeError: fori_loop() missing 1 required positional argument: 'init_val'

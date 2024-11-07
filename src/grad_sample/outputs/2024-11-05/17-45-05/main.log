@@ -1,0 +1,34 @@
+[2024-11-05 17:45:06,062][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 17:45:06,063][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-05 17:45:06,063][root][INFO] - Command line args:
+
+[2024-11-05 17:45:06,064][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 17:45:06,065][root][INFO] - Run config:
+device: cuda:4
+solver_fn: nk.optimizer.solver.cholesky
+lr: 0.0001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+base_dir: /scratch/.amisery/grad_sample/
+model:
+  __target__: grad_sample.model.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  __target__: nk.models.RBM
+  alpha: 1
+task:
+  __target__: grad_sample.tools.fullsum_train.Trainer
+  save_every: 3
+
+[2024-11-05 17:45:06,066][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 17:45:06,067][root][CRITICAL] - 'DictConfig' object is not callable
+Traceback (most recent call last):
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/main.py", line 51, in main
+    task()
+TypeError: 'DictConfig' object is not callable

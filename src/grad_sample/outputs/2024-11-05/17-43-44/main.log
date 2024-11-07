@@ -1,0 +1,54 @@
+[2024-11-05 17:43:44,770][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 17:43:44,771][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-05 17:43:44,771][root][INFO] - Command line args:
+
+[2024-11-05 17:43:44,772][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 17:43:44,774][root][INFO] - Run config:
+device: cuda:4
+solver_fn: nk.optimizer.solver.cholesky
+lr: 0.0001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+base_dir: /scratch/.amisery/grad_sample/
+model:
+  __target__: grad_sample.model.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  __target__: nk.models.RBM
+  alpha: 1
+task:
+  __target__: grad_sample.tools.fullsum_train.Trainer
+  save_every: 3
+
+[2024-11-05 17:43:44,774][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 17:43:44,776][root][CRITICAL] - Missing key setup
+    full_key: task.setup
+    object_type=dict
+Traceback (most recent call last):
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/main.py", line 51, in main
+    task.setup()
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/dictconfig.py", line 355, in __getattr__
+    self._format_and_raise(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/base.py", line 231, in _format_and_raise
+    format_and_raise(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/_utils.py", line 899, in format_and_raise
+    _raise(ex, cause)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/_utils.py", line 797, in _raise
+    raise ex.with_traceback(sys.exc_info()[2])  # set env var OC_CAUSE=1 for full trace
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/dictconfig.py", line 351, in __getattr__
+    return self._get_impl(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/dictconfig.py", line 442, in _get_impl
+    node = self._get_child(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/basecontainer.py", line 73, in _get_child
+    child = self._get_node(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/omegaconf/dictconfig.py", line 480, in _get_node
+    raise ConfigKeyError(f"Missing key {key!s}")
+omegaconf.errors.ConfigAttributeError: Missing key setup
+    full_key: task.setup
+    object_type=dict

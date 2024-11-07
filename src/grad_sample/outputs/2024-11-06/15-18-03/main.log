@@ -1,0 +1,62 @@
+[2024-11-06 15:18:03,151][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 15:18:03,152][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-06 15:18:03,153][root][INFO] - Command line args:
+
+[2024-11-06 15:18:03,153][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 15:18:03,155][root][INFO] - Run config:
+device: '4'
+solver_fn:
+  _target_: netket.optimizer.solver.cholesky
+lr: 0.001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+save_every: 3
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 4
+  param_dtype: complex
+task:
+  _target_: grad_sample.tasks.fullsum_analysis.FullSumPruning
+
+[2024-11-06 15:18:03,155][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 15:18:05,917][jax._src.xla_bridge][INFO] - Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+[2024-11-06 15:18:05,919][jax._src.xla_bridge][INFO] - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+[2024-11-06 15:18:22,526][root][CRITICAL] - Array slice indices must have static start/stop/step to be used with NumPy indexing syntax. Found slice(None, Traced<ShapedArray(int64[])>with<DynamicJaxprTrace(level=2/0)>, None). To index a statically sized array at a dynamic position, try lax.dynamic_slice/dynamic_update_slice (JAX does not support dynamically sized arrays within JIT compiled functions).
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/main.py", line 50, in main
+    task()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 42, in __call__
+    in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 179, in prune
+    out = prune_vmap(jnp.arange(1,self.dimH))
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 177, in <lambda>
+    prune_vmap = jax.vmap(lambda i: self.prune_to(i, in_idx))
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 165, in prune_to
+    dp_sol = self.compute_change(i, in_idx, vmap_version=False)
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 136, in compute_change
+    pdf_new = self.pdf.at[in_idx[:j]].set(0)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/jax/_src/numpy/array_methods.py", line 1036, in op
+    return getattr(self.aval, f"_{name}")(self, *args)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/jax/_src/numpy/array_methods.py", line 647, in _getitem
+    return lax_numpy._rewriting_take(self, item)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/jax/_src/numpy/lax_numpy.py", line 8953, in _rewriting_take
+    return _gather(arr, treedef, static_idx, dynamic_idx, indices_are_sorted,
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/jax/_src/numpy/lax_numpy.py", line 8962, in _gather
+    indexer = _index_to_gather(shape(arr), idx)  # shared with _scatter_update
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/jax/_src/numpy/lax_numpy.py", line 9205, in _index_to_gather
+    raise IndexError(msg)
+IndexError: Array slice indices must have static start/stop/step to be used with NumPy indexing syntax. Found slice(None, Traced<ShapedArray(int64[])>with<DynamicJaxprTrace(level=2/0)>, None). To index a statically sized array at a dynamic position, try lax.dynamic_slice/dynamic_update_slice (JAX does not support dynamically sized arrays within JIT compiled functions).

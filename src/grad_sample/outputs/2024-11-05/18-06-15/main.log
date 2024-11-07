@@ -1,0 +1,97 @@
+[2024-11-05 18:06:16,050][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 18:06:16,051][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-05 18:06:16,052][root][INFO] - Command line args:
+
+[2024-11-05 18:06:16,052][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 18:06:16,054][root][INFO] - Run config:
+device: '4'
+solver_fn: nk.optimizer.solver.cholesky
+lr: 0.0001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+save_every: 3
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 1
+task:
+  _target_: grad_sample.tasks.fullsum_train.Trainer
+
+[2024-11-05 18:06:16,054][root][INFO] - ---------------------------------------------------------------
+[2024-11-05 18:06:18,820][jax._src.xla_bridge][INFO] - Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+[2024-11-05 18:06:18,822][jax._src.xla_bridge][INFO] - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+[2024-11-05 18:06:25,331][root][CRITICAL] - 
+A function with real parameters is not holomorphic.
+
+You declared `holomorphic=True` when computing the Jacobian, Quantum
+Geometric Tensor or a similar, but your variational function has
+real parameters, so it cannot be holomorphic.
+
+To fix this error, remove the keyword argument `holomorphic=True`.
+
+
+-------------------------------------------------------
+For more detailed informations, visit the following link:
+	 https://netket.readthedocs.io/en/latest/api/_generated/errors/netket.errors.IllegalHolomorphicDeclarationForRealParametersError.html
+or the list of all common errors at
+	 https://netket.readthedocs.io/en/latest/api/errors.html
+-------------------------------------------------------
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/main.py", line 52, in main
+    task()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_train.py", line 21, in __call__
+    self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log), callback=(save_cb,))
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/driver/abstract_variational_driver.py", line 333, in run
+    for step in self.iter(n_iter, step_size):
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/driver/abstract_variational_driver.py", line 226, in iter
+    self._dp = self._forward_and_backward()
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/driver/vmc.py", line 124, in _forward_and_backward
+    self._dp = self.preconditioner(self.state, self._loss_grad, self.step_count)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/utils/timing.py", line 230, in timed_function
+    return fun(*args, **kwargs)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/optimizer/preconditioner.py", line 116, in __call__
+    self._lhs = self.lhs_constructor(vstate, step)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/optimizer/sr.py", line 148, in lhs_constructor
+    return self.qgt_constructor(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/optimizer/qgt/default.py", line 133, in __call__
+    return self._last_matrix(variational_state, *args, **kwargs)  # type: ignore
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/utils/api_utils.py", line 84, in wrapper
+    return func(*args, **kwargs)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/optimizer/qgt/qgt_jacobian.py", line 270, in QGTJacobianPyTree
+    return QGTJacobian_DefaultConstructor(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/utils/timing.py", line 230, in timed_function
+    return fun(*args, **kwargs)
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/optimizer/qgt/qgt_jacobian.py", line 71, in QGTJacobian_DefaultConstructor
+    mode = nkjax.jacobian_default_mode(
+  File "/scratch/.amisery/netket2/lib/python3.10/site-packages/netket/jax/_jacobian/default_mode.py", line 112, in jacobian_default_mode
+    raise IllegalHolomorphicDeclarationForRealParametersError()
+netket.errors.IllegalHolomorphicDeclarationForRealParametersError: 
+A function with real parameters is not holomorphic.
+
+You declared `holomorphic=True` when computing the Jacobian, Quantum
+Geometric Tensor or a similar, but your variational function has
+real parameters, so it cannot be holomorphic.
+
+To fix this error, remove the keyword argument `holomorphic=True`.
+
+
+-------------------------------------------------------
+For more detailed informations, visit the following link:
+	 https://netket.readthedocs.io/en/latest/api/_generated/errors/netket.errors.IllegalHolomorphicDeclarationForRealParametersError.html
+or the list of all common errors at
+	 https://netket.readthedocs.io/en/latest/api/errors.html
+-------------------------------------------------------
+

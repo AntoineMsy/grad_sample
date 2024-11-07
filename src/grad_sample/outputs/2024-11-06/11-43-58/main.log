@@ -1,0 +1,33 @@
+[2024-11-06 11:43:58,321][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 11:43:58,322][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-06 11:43:58,323][root][INFO] - Command line args:
+
+[2024-11-06 11:43:58,323][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 11:43:58,326][root][INFO] - Run config:
+device: '4'
+solver_fn:
+  _target_: netket.optimizer.solver.cholesky
+lr: 0.001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+save_every: 3
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 2
+  param_dtype: complex
+task:
+  _target_: grad_sample.tasks.fullsum_analysis.FullSumPruning
+
+[2024-11-06 11:43:58,326][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 11:44:01,118][jax._src.xla_bridge][INFO] - Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+[2024-11-06 11:44:01,120][jax._src.xla_bridge][INFO] - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory

@@ -1,0 +1,56 @@
+[2024-11-06 15:19:20,095][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 15:19:20,096][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-06 15:19:20,097][root][INFO] - Command line args:
+
+[2024-11-06 15:19:20,097][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 15:19:20,099][root][INFO] - Run config:
+device: '4'
+solver_fn:
+  _target_: netket.optimizer.solver.cholesky
+lr: 0.001
+diag_shift: 1.0e-10
+n_iter: 2000
+chunk_size_jac: 2
+chunk_size_vmap: 1
+save_every: 3
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.ising.TFI
+  L: 3
+  h: 1.0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 4
+  param_dtype: complex
+task:
+  _target_: grad_sample.tasks.fullsum_analysis.FullSumPruning
+
+[2024-11-06 15:19:20,100][root][INFO] - ---------------------------------------------------------------
+[2024-11-06 15:19:23,053][jax._src.xla_bridge][INFO] - Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+[2024-11-06 15:19:23,054][jax._src.xla_bridge][INFO] - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory
+[2024-11-06 15:19:39,870][root][CRITICAL] - Shapes must be 1D sequences of concrete values of integer type, got (Traced<ShapedArray(int64[])>with<DynamicJaxprTrace(level=2/0)>,).
+If using `jit`, try using `static_argnums` or applying `jit` to smaller subfunctions.
+The error occurred while tracing the function compute_change at /home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py:132 for jit. This concrete value was not available in Python because it depends on the value of the argument self.
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/main.py", line 50, in main
+    task()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 42, in __call__
+    in_idx, fid_vals, dp_dist_ev, infid_ev = self.prune()
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 179, in prune
+    out = prune_vmap(jnp.arange(1,self.dimH))
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 177, in <lambda>
+    prune_vmap = jax.vmap(lambda i: self.prune_to(i, in_idx))
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 165, in prune_to
+    dp_sol = self.compute_change(i, in_idx, vmap_version=False)
+  File "/home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py", line 136, in compute_change
+    pdf_new = self.pdf.at[jax.lax.dynamic_slice(in_idx,(0,),(j,))].set(0)
+TypeError: Shapes must be 1D sequences of concrete values of integer type, got (Traced<ShapedArray(int64[])>with<DynamicJaxprTrace(level=2/0)>,).
+If using `jit`, try using `static_argnums` or applying `jit` to smaller subfunctions.
+The error occurred while tracing the function compute_change at /home/amisery/phd/tfi_gs_samples/grad_sample/src/grad_sample/tasks/fullsum_analysis.py:132 for jit. This concrete value was not available in Python because it depends on the value of the argument self.

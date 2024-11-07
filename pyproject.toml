@@ -1,0 +1,17 @@
+[project]
+name = "grad-sample"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "AntoineMsy", email = "antoinemisery8@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+fullsum-optim = "grad_sample.tools.fullsum_optim:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
