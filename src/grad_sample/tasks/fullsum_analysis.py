@@ -25,7 +25,7 @@ class FullSumPruning(Problem):
         self.delta_l = [10**n for n in range(-5,0)]
         self.mode = mode
         self.deltadep = deltadep
-        self.dimH = 2**self.model.Ns
+        self.dimH = self.model.hi.n_states
         self.recompute_stride = recompute_stride
         self.save_dir = self.output_dir + "/{mode}"
         self.chunk_size_vmap = self.dimH // self.chunk_size_vmap
@@ -42,9 +42,10 @@ class FullSumPruning(Problem):
         # eval_s will be relative errors at every magnitude
         # self.eval_s = jnp.linspace(1, self.n_iter//self.save_every - 1, 10).astype(int)
         self.eval_s = find_closest_saved_vals(E_err, jnp.arange(len(E_err//10)), self.save_every)
-        self.delta_eval = jnp.ones(len(self.eval_s)) * 1e-3
-        self.delta_eval = self.delta_eval.at[:5].set(1e-4)
+        self.delta_eval = jnp.ones(len(self.eval_s)) * 1e-5
+        self.delta_eval = self.delta_eval.at[:5].set(1e-5)
         print(self.eval_s)
+        self.diag_shift = 1e-10
 
     def __call__(self):
         self.set_strategy()
@@ -153,9 +154,6 @@ class FullSumPruning(Problem):
         # psi_new = jnp.exp(log_psi_updated)
         # return psi_new
         return _compute_updated_state(self.vstate.model, self.vstate.parameters, self.vstate.hilbert.all_states(), self.delta, dp)
-
-
-    
 
     # @partial(jax.jit, static_argnums=0)
     def get_change(self, indices):

@@ -1,0 +1,5 @@
+_target_ : grad_sample.models.heisenberg.Heisenberg1d
+J: 1.0
+L: 14
+sign_rule: False
+acting_on_subspace: 0

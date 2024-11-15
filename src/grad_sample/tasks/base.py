@@ -21,7 +21,18 @@ class Problem:
         self.model = instantiate(self.cfg.model)
 
         # Instantiate ansatz
-        self.ansatz = instantiate(self.cfg.ansatz)
+        print(self.cfg.ansatz)
+        if "LogStateVector" in self.cfg.ansatz._target_:
+            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hi)
+            self.alpha = 0
+        elif "LSTMNet" in self.cfg.ansatz._target_:
+            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hi)
+            self.alpha = self.cfg.ansatz.layers
+        else:
+            self.ansatz = instantiate(self.cfg.ansatz)
+            self.alpha = self.ansatz.alpha
+        dict_name = {"netket.models.RBM": "RBM", "netket.models.LogStateVector": "log_state", "netket.experimental.models.LSTMNet": "RNN"}
+        self.ansatz_name = dict_name[self.cfg.ansatz._target_]
 
         # set hparams and relevant variables
         self.solver_fn = call(self.cfg.solver_fn)
@@ -41,8 +52,10 @@ class Problem:
         self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic=self.holomorphic)
         self.diag_exp = int(-jnp.log10(self.diag_shift)+1)
         
-        self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/RBM/alpha{self.ansatz.alpha}/saved_{self.save_every}_{self.diag_exp}"
-        
+        if "heisenberg" in self.model.name:
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}_s{int(self.model.sign_rule)}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/saved_{self.save_every}_{self.diag_exp}"
+        else:
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/saved_{self.save_every}_{self.diag_exp}"
         # create dir if it doesn't already exist
         os.makedirs(self.output_dir, exist_ok=True)
         

@@ -1,0 +1,4 @@
+_target_ : netket.experimental.models.LSTMNet
+layers : 1
+features : 32
+param_dtype : complex

@@ -22,7 +22,7 @@ class Trainer(Problem):
         self.plot_training_curve = True
 
     def __call__(self):
-        self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log), callback=(save_cb,))
+        self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log))
 
         if self.plot_training_curve:
             log_opt = self.output_dir + ".log"
@@ -34,4 +34,3 @@ class Trainer(Problem):
             plt.ylabel("Relative error")
             plt.yscale("log")
             plt.savefig(self.output_dir + '/training.png')
-

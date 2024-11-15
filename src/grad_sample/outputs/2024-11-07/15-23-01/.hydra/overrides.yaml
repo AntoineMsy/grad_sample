@@ -1,4 +1,0 @@
-- ansatz.alpha=1
-- model.L=4
-- lr=0.01
-- chunk_size_vmap=1000
