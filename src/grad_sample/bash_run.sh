@@ -54,13 +54,13 @@
 # python main.py ansatz.alpha=6 model=heisenberg1d model.sign_rule=True task=train device="4" n_iter=8000
 # python main.py ansatz.alpha=7 model=heisenberg1d model.sign_rule=True task=train device="4" n_iter=8000
 
-python main.py ansatz.alpha=1 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=2000
-python main.py ansatz.alpha=2 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=4000
-python main.py ansatz.alpha=3 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=4000
-python main.py ansatz.alpha=4 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=4000
-python main.py ansatz.alpha=5 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=6000
-python main.py ansatz.alpha=6 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=8000
-python main.py ansatz.alpha=7 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=8000
+# python main.py ansatz.alpha=1 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=2000
+# python main.py ansatz.alpha=2 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=4000
+# python main.py ansatz.alpha=3 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=4000
+# python main.py ansatz.alpha=4 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=4000
+# python main.py ansatz.alpha=5 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=6000
+# python main.py ansatz.alpha=6 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=8000
+# python main.py ansatz.alpha=7 model=heisenberg1d model.sign_rule=False task=analysis_dp device="4" n_iter=8000
 
 # python main.py ansatz.alpha=1 model=heisenberg1d model.sign_rule=True task=analysis_dp device="4" n_iter=2000
 # python main.py ansatz.alpha=2 model=heisenberg1d model.sign_rule=True task=analysis_dp device="4" n_iter=4000
@@ -74,11 +74,11 @@ python main.py ansatz.alpha=7 model=heisenberg1d model.sign_rule=False task=anal
 
 # #!/bin/bash
 
-# # Define the ranges and parameters
-# alphas=(1 2 3 4 5 6 7)
-# iterations=(2000 4000 4000 4000 6000 8000 8000)
-# sign_rules=("False" "True")
-# tasks=("train" "analysis_dp")
+# Define the ranges and parameters
+# alphas=(1 2 3 4 5)
+# iterations=(4000 6000 6000 6000 6000)
+# # sign_rules=("False" "True")
+# tasks=("train")
 
 # # Loop over sign_rules, tasks, and alphas
 # for sign_rule in "${sign_rules[@]}"; do
@@ -86,11 +86,15 @@ python main.py ansatz.alpha=7 model=heisenberg1d model.sign_rule=False task=anal
 #     for i in "${!alphas[@]}"; do
 #       alpha=${alphas[i]}
 #       n_iter=${iterations[i]}
-#       echo "Running: python main.py ansatz.alpha=${alpha} model=heisenberg1d model.sign_rule=${sign_rule} task=${task} device='4' n_iter=${n_iter}"
-#       python main.py ansatz.alpha=${alpha} model=heisenberg1d model.sign_rule=${sign_rule} task=${task} device="4" n_iter=${n_iter}
+#       echo "Running: python main.py ansatz.alpha=${alpha} model=xxz task=${task} device='4' n_iter=${n_iter}"
+#       python main.py ansatz.alpha=${alpha} model=xxz task=${task} device="4" n_iter=${n_iter}
 #     done
 #   done
 # done
 
 
-python main.py ansatz=rnn model=heisenberg1d model.sign_rule=False model.L=14 task=analysis_dp device="3", diag_shift=10
+# python main.py ansatz=rnn model=heisenberg1d model.sign_rule=False model.L=14 task=analysis_dp device="3", diag_shift=4
+python main.py sample_size=4
+python main.py sample_size=8
+python main.py sample_size=16
+python main.py sample_size=32

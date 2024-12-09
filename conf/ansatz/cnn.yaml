@@ -1,0 +1,5 @@
+_target_ : grad_sample.ansatz.cnn.ConvReLU
+depth: 2
+features: 64
+kernel_size: 2
+dtype: complex

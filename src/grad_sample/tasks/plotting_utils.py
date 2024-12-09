@@ -29,7 +29,7 @@ import copy
 import argparse
 import json
 import yaml
-from utils import get_overlap_runs
+from grad_sample.utils import get_overlap_runs
 from scipy.sparse.linalg import eigsh
 
 def load_yaml_to_vars(yaml_path):

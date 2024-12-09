@@ -1,0 +1,41 @@
+[2024-11-15 15:03:09,446][root][INFO] - ---------------------------------------------------------------
+[2024-11-15 15:03:09,447][root][INFO] - Env:
+CUDA_VISIBLE_DEVICES: null
+PYTHONOPTIMIZE: null
+
+[2024-11-15 15:03:09,448][root][INFO] - Command line args:
+ansatz.alpha=2
+model=heisenberg1d
+model.sign_rule=False
+task=analysis_dp
+device=4
+n_iter=4000
+[2024-11-15 15:03:09,448][root][INFO] - ---------------------------------------------------------------
+[2024-11-15 15:03:09,452][root][INFO] - Run config:
+device: 4
+solver_fn:
+  _target_: netket.optimizer.solver.cholesky
+lr: 0.001
+diag_shift: 0.0001
+n_iter: 4000
+chunk_size_jac: 2
+chunk_size_vmap: 100
+save_every: 10
+base_path: /scratch/.amisery/grad_sample/
+model:
+  _target_: grad_sample.models.heisenberg.Heisenberg1d
+  J: -1.0
+  L: 14
+  sign_rule: false
+  acting_on_subspace: 0
+ansatz:
+  _target_: netket.models.RBM
+  alpha: 2
+  param_dtype: complex
+task:
+  _target_: grad_sample.tasks.fullsum_analysis.FullSumPruning
+  deltadep: false
+
+[2024-11-15 15:03:09,452][root][INFO] - ---------------------------------------------------------------
+[2024-11-15 15:03:14,265][jax._src.xla_bridge][INFO] - Unable to initialize backend 'rocm': module 'jaxlib.xla_extension' has no attribute 'GpuAllocatorConfig'
+[2024-11-15 15:03:14,270][jax._src.xla_bridge][INFO] - Unable to initialize backend 'tpu': INTERNAL: Failed to open libtpu.so: libtpu.so: cannot open shared object file: No such file or directory

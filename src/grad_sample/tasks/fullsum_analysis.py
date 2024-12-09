@@ -9,8 +9,8 @@ import jax.numpy as jnp
 import jax
 from tqdm import tqdm
 from grad_sample.tasks.base import Problem
-from utils.distances import curved_dist, fs_dist
-from utils.utils import cumsum, find_closest_saved_vals
+from grad_sample.utils.distances import curved_dist, fs_dist
+from grad_sample.utils.utils import cumsum, find_closest_saved_vals
 import json
 
 from functools import partial
@@ -28,7 +28,7 @@ class FullSumPruning(Problem):
         self.dimH = self.model.hi.n_states
         self.recompute_stride = recompute_stride
         self.save_dir = self.output_dir + "/{mode}"
-        self.chunk_size_vmap = self.dimH // self.chunk_size_vmap
+        self.chunk_size_vmap = self.dimH // (self.dimH // self.chunk_size_vmap)
         # self.chunk_size_jac = self.dimH // self.chunk_size_jac
 
         self.vmap_change = nkjax.vmap_chunked(self.compute_change, in_axes=0, chunk_size = self.chunk_size_vmap) 
@@ -111,8 +111,8 @@ class FullSumPruning(Problem):
         self.Hloc = self.model.H_sp @ self.vstate_arr / self.vstate_arr
         self.Hloc_c = jnp.sqrt(self.pdf)*(self.Hloc - jnp.sum(self.Hloc*self.pdf))
 
-        mode = "holomorphic" if self.holomorphic else "complex"
-
+        
+        self.mode = "holomorphic"
         # uncentered jacobian
         self.jacobian_orig = nkjax.jacobian(
             self.vstate._apply_fun,
@@ -120,7 +120,7 @@ class FullSumPruning(Problem):
             self.vstate.hilbert.all_states(), #in MC state, this is vstate.samples
             self.vstate.model_state,
             pdf=self.pdf,
-            mode=mode,
+            mode=self.mode,
             dense=True,
             center=False,
             chunk_size=self.chunk_size_jac,
@@ -144,15 +144,6 @@ class FullSumPruning(Problem):
     #@partial(jax.jit, static_argnums=0)
     def compute_updated_state(self, dp):
         # update params and compute update vstate
-        # print(self.vstate.parameters)
-        # params, tree_def = jax.tree_util.tree_flatten(self.vstate.parameters)
-        # leaf_sizes = [leaf.size for leaf in params]
-        # partitioned_dp = jnp.split(dp, cumsum(leaf_sizes)[:-1])
-        # new_leaves = [params[i] - self.delta*partitioned_dp[i].reshape(params[i].shape) for i in range(len(params))]
-        # new_pars = jax.tree_util.tree_unflatten(tree_def, new_leaves)
-        # log_psi_updated = self.vstate.model.apply({"params": new_pars}, self.vstate.hilbert.all_states())
-        # psi_new = jnp.exp(log_psi_updated)
-        # return psi_new
         return _compute_updated_state(self.vstate.model, self.vstate.parameters, self.vstate.hilbert.all_states(), self.delta, dp)
 
     # @partial(jax.jit, static_argnums=0)

@@ -18,7 +18,7 @@ class Trainer(Problem):
         # Save the current config to the custom path
         with open(os.path.join(self.output_dir, "config.yaml"), "w") as f:
             f.write(OmegaConf.to_yaml(self.cfg))
-        self.gs = nk.VMC(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        self.gs = nk.VMC(hamiltonian=self.model.H, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         self.plot_training_curve = True
 
     def __call__(self):

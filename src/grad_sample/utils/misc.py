@@ -48,8 +48,8 @@ def compute_jacobian(model, parameters, hamiltonian_sparse, s):
     return jacobian
 
 from functools import partial 
-@partial(jax.jit, static_argnames='model')   # compile the function and make it faster to execute
-def compute_eloc(model, parameters, ham, s):
+# @partial(jax.jit, static_argnames='apply_fun')   # compile the function and make it faster to execute
+def compute_eloc(apply_fun, parameters, ham, s):
     # reshape the samples to have shape (n_samples, N), the samples are divided in different Markov chains
     s = s.reshape(-1, s.shape[-1])
 
@@ -57,8 +57,8 @@ def compute_eloc(model, parameters, ham, s):
     eta, eta_H_sigma = ham.get_conn_padded(s)
 
     # compute the local energies (in log-spacde for numerical stability)
-    logpsi_eta = model.apply(parameters,eta)    # evaluate the wf on the samples
-    logpsi_sigma = model.apply(parameters, s)  # evaluate the wf on the connected configurations
+    logpsi_eta = apply_fun(parameters, eta)    # evaluate the wf on the samples
+    logpsi_sigma = apply_fun(parameters, s)  # evaluate the wf on the connected configurations
     logpsi_sigma = jnp.expand_dims(logpsi_sigma, -1) # add a dimension to match the shape of logpsi_eta
     E_loc =  jnp.sum(eta_H_sigma * jnp.exp(logpsi_eta -logpsi_sigma), axis=-1)     # compute the local energies
 

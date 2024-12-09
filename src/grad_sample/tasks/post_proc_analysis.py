@@ -14,7 +14,7 @@ import copy
 import argparse
 import yaml
 # from utils import load_yaml_to_vars
-from utils import cumsum
+from grad_sample.utils import cumsum
 
 def load_yaml_to_vars(yaml_path):
     # Open and parse the YAML file
