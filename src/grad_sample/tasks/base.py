@@ -11,6 +11,7 @@ from grad_sample.utils.utils import save_cb, e_diag
 from grad_sample.utils.plotting_setup import *
 from grad_sample.ansatz.cnn import final_actfn
 from deepnets.net.ViT.body import extract_patches2d
+
 class Problem:
     def __init__(self, cfg : DictConfig):
         self.cfg = deepcopy(cfg)
@@ -84,7 +85,7 @@ class Problem:
         self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
 
         self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-        # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic=self.holomorphic)
+        # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         
         self.diag_exp = int(-jnp.log10(self.diag_shift)+1)
         
