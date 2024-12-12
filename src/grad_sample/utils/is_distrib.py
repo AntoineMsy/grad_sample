@@ -18,8 +18,6 @@ def Hlocpsi(apply_fun, H, params, sigma):
     # return log_Hloc_c + apply_fun(params, sigma)
     return jnp.log(jnp.sqrt(jnp.abs(Hloc)))+ apply_fun(params, sigma)
 
-
-
 def grad_psi(apply_fun, H, params, sigma):
     psi = apply_fun(params, sigma)
     jac = nkjax.jacobian(
@@ -34,7 +32,7 @@ def grad_psi(apply_fun, H, params, sigma):
             _sqrt_rescale=False, #(not) rescaled by sqrt[π(x)], but in MC this rescales by 1/sqrt[N_mc]
         )
     grad = jnp.abs(jnp.sum(jac, axis=1))
-    return jnp.log(grad) + psi
+    return jnp.log(grad)
 
 def grad_psi_delta(apply_fun, H, params, sigma, jac_mean):
     psi = apply_fun(params, sigma)
@@ -113,7 +111,7 @@ def IS_estimator_force_S(log_prob_fun, apply_fun, H, params, sigma):
             chunk_size=100,
             _sqrt_rescale=False, #(not) rescaled by sqrt[π(x)], but in MC this rescales by 1/sqrt[N_mc]
         )
-    w = (jnp.abs(jnp.exp(log_psi))**2 / jnp.abs(jnp.exp(log_prob))**2)
+    w = w = jnp.abs(jnp.exp(2*(log_psi-log_prob)))
     norm_const = jnp.mean(w)
     jac_c = jac - jnp.mean(w[:,None]*jac, axis=0)/norm_const
     jac_c_sqrt = jnp.sqrt(w[:,None]/len(sigma))*jac_c
@@ -121,7 +119,7 @@ def IS_estimator_force_S(log_prob_fun, apply_fun, H, params, sigma):
     hloc_c = jnp.sqrt(w/len(sigma))*(hloc - jnp.mean(w*hloc)/norm_const)
     return  (jac_c_sqrt.conj().T @ hloc_c)/norm_const, (jac_c_sqrt.conj().T @ jac_c_sqrt)/norm_const
 
-def estimator_std_force(log_prob_fun, apply_fun, H, params, sigma):
+def estimator_snr_grad(log_prob_fun, apply_fun, H, params, sigma):
     log_psi = apply_fun(params, sigma)
     log_prob = log_prob_fun(params, sigma)
     jac = nkjax.jacobian(
@@ -135,16 +133,21 @@ def estimator_std_force(log_prob_fun, apply_fun, H, params, sigma):
             chunk_size=100,
             _sqrt_rescale=False, #(not) rescaled by sqrt[π(x)], but in MC this rescales by 1/sqrt[N_mc]
         )
-    w = (jnp.abs(jnp.exp(log_psi))**2 / jnp.abs(jnp.exp(log_prob))**2)
+    w = jnp.abs(jnp.exp(2*(log_psi-log_prob)))
     norm_const = jnp.mean(w)
     jac_c = jac - jnp.mean(w[:,None]*jac, axis=0)/norm_const
     jac_c_sqrt = jnp.sqrt(w[:,None]/len(sigma))*jac_c
     hloc = compute_eloc(apply_fun, params, H, sigma)
+    hloc_is = w*hloc/norm_const
+    hloc_estim = jnp.mean(hloc_is)
+    hloc_var  = jnp.var(hloc_is)
+    snr_h = jnp.mean(jnp.sqrt(jnp.abs(hloc_estim)**2/(len(sigma)*hloc_var)))
     hloc_c = jnp.sqrt(w/len(sigma))*(hloc - jnp.mean(w*hloc)/norm_const)
     force_unrolled = jac_c_sqrt.conj().T * hloc_c
-
-    std_force = jnp.std(force_unrolled,axis=1)
-    return jnp.mean(std_force)
+    var_force = jnp.var(force_unrolled,axis=1) 
+    grad_estim = jnp.mean(force_unrolled, axis=1)
+    snr_grad = jnp.mean(jnp.sqrt(jnp.abs(grad_estim)**2/(len(sigma)*var_force)))
+    return snr_grad, snr_h
 
 def estimate_mean_std_IS(val, norm_const):
     val_mean = jnp.mean(val.real)

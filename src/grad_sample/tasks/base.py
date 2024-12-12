@@ -79,6 +79,7 @@ class Problem:
         else:
             self.Nsample = self.sample_size*(self.alpha*(self.model.Ns)**2 + self.alpha*self.model.Ns + self.model.Ns)
             self.chunk_size = self.Nsample // (self.Nsample // self.chunk_size_jac)
+            self.chunk_size = None
             self.sampler = nk.sampler.ExactSampler(hilbert= self.model.hi)
             self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample, seed=0)
             print("MC state loaded, num samples %d"%self.Nsample)

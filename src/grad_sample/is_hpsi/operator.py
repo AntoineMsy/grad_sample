@@ -48,10 +48,10 @@ class IS_Operator(AbstractObservable):
         # if square_fast:
         #     self._operator_squared = None
         # else:
-        op_sq = operator.H @ operator
-        if not isinstance(op_sq, DiscreteJaxOperator):
-            op_sq = op_sq.to_jax_operator()
-        self._operator_squared = op_sq
+        # op_sq = operator.H @ operator
+        # if not isinstance(op_sq, DiscreteJaxOperator):
+        #     op_sq = op_sq.to_jax_operator()
+        # self._operator_squared = op_sq
 
     """
     @property
@@ -90,8 +90,8 @@ class IS_Operator(AbstractObservable):
         children = (
             self.operator,
             # self.epsilon,
-            self.resample_fraction,
-            self._operator_squared,
+            self.resample_fraction
+            # self._operator_squared,
         )
         # aux_data = {"second_order": self.second_order, "square_fast": self.square_fast, "reweight_norm": self.reweight_norm}
         # aux_data = {"square_fast": self.square_fast}
@@ -103,7 +103,7 @@ class IS_Operator(AbstractObservable):
         # square_fast = aux_data.pop("square_fast")
 
         # (operator, epsilon, resample_fraction, op_sq) = children
-        (operator, op_sq) = children
+        (operator, resample_fraction) = children
         res = cls(
             operator,
             # epsilon=epsilon,
@@ -112,7 +112,7 @@ class IS_Operator(AbstractObservable):
             # square_fast=True,
         )
         # res._square_fast = square_fast
-        res._operator_squared = op_sq
+        # res._operator_squared = op_sq
         return res
 
     def get_log_importance(self, vstate):

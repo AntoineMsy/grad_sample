@@ -1,4 +1,3 @@
-
 from netket_pro.utils import make_logpsi_U_afun, make_logpsi_sum_afun
 
 def _prepare_H(log_psi, log_psi_variables, op):

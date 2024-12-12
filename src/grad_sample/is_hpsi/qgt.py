@@ -104,123 +104,31 @@ def QGTJacobianDenseImportanceSampling(
     if importance_operator is None:
         raise ValueError("Must specify the importance_operator")
 
-    # TODO: Find a better way to handle this case
-    from netket.vqs import FullSumState
-
-    if isinstance(vstate, FullSumState):
-        if chunk_size is None and hasattr(vstate, "chunk_size"):
-            chunk_size = vstate.chunk_size
-
-        logφ, variables_φ = importance_operator.get_log_importance(vstate)
-        samples = vstate._all_states
-
-        if mode is None:
-            mode = nkjax.jacobian_default_mode(
-                vstate._apply_fun,
-                vstate.parameters,
-                vstate.model_state,
-                samples,
-                holomorphic=holomorphic,
-            )
-
-        # samples_φ.shape -> (N_saples, n_orbitals)
-
-        J_ψ_σ = nkjax.jacobian(
-            vstate._apply_fun,
-            vstate.parameters,
-            samples,
-            vstate.model_state,
-            mode=mode,
-            pdf=None,
-            chunk_size=chunk_size,
-            dense=True,
-            center=False,
-            _sqrt_rescale=False,
-        )
-
-        R = importance_factor_sq(
-            vstate._apply_fun, logφ, vstate.variables, variables_φ, samples, chunk_size
-        )
-        # R.shape -> (N_samples,)
-
-        R = R.reshape(-1, *(1 for _ in range(J_ψ_σ.ndim - 1)))
-
-        # R.shape -> (N_samples, 1, 1)
-
-        K = compute_importance_factor_full(
-            vstate._apply_fun,
-            vstate.variables,
-            samples,
-            importance_operator,
-            chunk_size,
-        )
-
-        J_ψ_σ_R = R * J_ψ_σ * K  # shape -> (N_samples, 2, N_params)
-
-        logφ_σ = nkjax.apply_chunked(
-            lambda x: logφ(variables_φ, x), chunk_size=chunk_size
-        )(samples)
-        φ_σ = jnp.exp(logφ_σ)
-
-        P_σ = jnp.abs(φ_σ) ** 2 / jnp.linalg.norm(φ_σ) ** 2
-
-        J_centered_ψ_σ_R = jnp.einsum("i,i...", P_σ, J_ψ_σ_R)
-
-        P_σ_ = P_σ.reshape(-1, *(1 for _ in range(J_ψ_σ.ndim - 1)))
-
-        jacobians = (J_ψ_σ - J_centered_ψ_σ_R) * jnp.sqrt(K * R * P_σ_)
-
-        shift, offset = to_shift_offset(diag_shift, diag_scale)
-
-        if offset is not None:
-            ndims = 1 if mode != "complex" else 2
-            jacobians, scale = rescale(jacobians, offset, ndims=ndims)
-        else:
-            scale = None
-
-        pars_struct = jax.tree_util.tree_map(
-            lambda x: jax.ShapeDtypeStruct(x.shape, x.dtype), vstate.parameters
-        )
-
-        return QGTJacobianDenseT(
-            O=jacobians,
-            scale=scale,
-            mode=mode,
-            _params_structure=pars_struct,
-            diag_shift=shift,
-            **kwargs,
-        )
-
     if chunk_size is None and hasattr(vstate, "chunk_size"):
         chunk_size = vstate.chunk_size
 
-    logφ, variables_φ = importance_operator.get_log_importance(vstate)
+    log_Hpsi, Hpsi_vars = importance_operator.get_log_importance(vstate)
 
-    samples_φ = vstate.samples_distribution(
-        logφ,
-        variables=variables_φ,
+    Hpsi_samples = vstate.samples_distribution(
+        log_Hpsi,
+        variables=variables_Hpsi,
         resample_fraction=importance_operator.resample_fraction,
     )
-    nkjax.jacobian
-    samples_ψ = vstate.samples
 
     if mode is None:
         mode = nkjax.jacobian_default_mode(
             vstate._apply_fun,
             vstate.parameters,
             vstate.model_state,
-            samples_ψ,
+            Hpsi_samples,
             holomorphic=holomorphic,
         )
 
-    if samples_φ.ndim >= 3:
+    if Hpsi_samples.ndim >= 3:
         # use jit so that we can do it on global shared array
-        samples_φ = jax.jit(jax.lax.collapse, static_argnums=(1, 2))(samples_φ, 0, 2)
-    if samples_ψ.ndim >= 3:
-        # use jit so that we can do it on global shared array
-        samples_ψ = jax.jit(jax.lax.collapse, static_argnums=(1, 2))(samples_ψ, 0, 2)
-
-    sqrt_n_samp = math.sqrt(samples_ψ.shape[0] * mpi.n_nodes)  # maintain weak type
+        Hpsi_samples = jax.jit(jax.lax.collapse, static_argnums=(1, 2))(Hpsi_samples, 0, 2)
+    
+    sqrt_n_samp = jnp.sqrt(Hpsi_samples.shape[0] * mpi.n_nodes)  # maintain weak type
 
     """
     J_ψ_η = nkjax.jacobian(
@@ -237,10 +145,10 @@ def QGTJacobianDenseImportanceSampling(
     )
     """
 
-    J_ψ_σ = nkjax.jacobian(
+    jac_dense = nkjax.jacobian(
         vstate._apply_fun,
         vstate.parameters,
-        samples_φ,
+        Hpsi_samples,
         vstate.model_state,
         mode=mode,
         chunk_size=chunk_size,
@@ -248,23 +156,16 @@ def QGTJacobianDenseImportanceSampling(
         center=False,
         _sqrt_rescale=False,
     )
+    print(sigma.shape)
+    op = importance_operator.operator
+    log_psi_sigma = nkjax.apply_chunked(lambda x: log_psi(parameters, x), chunk_size=chunk_size)(sigma)
 
-    R = importance_factor_sq(
-        vstate._apply_fun, logφ, vstate.variables, variables_φ, samples_φ, chunk_size
-    )
+    log_Hpsi_sigma = nkjax.apply_chunked(lambda x: log_Hpsi(Hpsi_vars, x), chunk_size=chunk_size)(sigma)
+    w_is_sigma = jnp.exp(2*(log_psi_sigma - log_Hpsi_sigma))
+    Z_ratio = 1/jnp.mean(w_is_sigma)
 
-    R = R.reshape(-1, *(1 for _ in range(J_ψ_σ.ndim - 1)))
-
-    K = compute_importance_factor(
-        vstate._apply_fun, vstate.variables, samples_ψ, importance_operator, chunk_size
-    )
-
-    J_ψ_σ_R = R * J_ψ_σ * K
-
-    J_centered_ψ_σ_R = jax.jit(partial(nkstats.mean, axis=0))(J_ψ_σ_R)
-
-    jacobians = (J_ψ_σ - J_centered_ψ_σ_R) * jnp.sqrt(K * R) / sqrt_n_samp
-
+    jacobians = jnp.sqrt(w_is_sigma)[None,:] * (jac_dense - Z_ratio*jnp.mean(w_is_sigma[None,:]*jac_dense, axis=1))
+    
     shift, offset = to_shift_offset(diag_shift, diag_scale)
 
     if offset is not None:

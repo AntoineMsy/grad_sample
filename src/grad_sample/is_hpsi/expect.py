@@ -20,7 +20,10 @@ from .operator import IS_Operator
 
 from grad_sample.is_hpsi.is_utils import _prepare_H
 
+from jax.tree_util import tree_map
 
+from netket.stats import subtract_mean
+from netket.jax._jacobian.logic import _multiply_by_pdf
 
 @expect.dispatch
 def expect_IS_Operator_is(
@@ -34,10 +37,12 @@ def expect_IS_Operator_is(
     Hpsi_samples = vstate.samples_distribution(
         apply_fun, variables=variables, resample_fraction=op.resample_fraction
     )
-
+    print("calling IS expect function")
     return expect_grad_is(
         vstate._apply_fun,
         vstate.parameters,
+        apply_fun,
+        variables,
         vstate.model_state,
         op,
         Hpsi_samples,
@@ -70,19 +75,30 @@ def expect_and_forces_is(
         return_grad=True,
         chunk_size=chunk_size,
     )
+    # return expect_grad_is(
+    #     vstate._apply_fun,
+    #     vstate.parameters,
+    #     vstate._apply_fun,
+    #     vstate.parameters,
+    #     vstate.model_state,
+    #     op,
+    #     vstate.samples,
+    #     return_grad=True,
+    #     chunk_size=chunk_size,
+    # )
 
-@partial(jax.jit, static_argnames=("logψ", "return_grad", "chunk_size"))
+@partial(jax.jit, static_argnames=("log_psi", "log_Hpsi", "return_grad", "chunk_size"))
 def expect_grad_is(
     log_psi, parameters, log_Hpsi, Hpsi_vars, model_state, operator, sigma, return_grad, chunk_size
 ):
-
     O = operator.operator
-
+    parameters = {"params": parameters}
+    sigma = sigma.reshape(sigma.shape[0]*sigma.shape[1], -1)
     # Compute standard Expectation value
     log_psi_sigma = nkjax.apply_chunked(lambda x: log_psi(parameters, x), chunk_size=chunk_size)(sigma)
 
     log_Hpsi_sigma = nkjax.apply_chunked(lambda x: log_Hpsi(Hpsi_vars, x), chunk_size=chunk_size)(sigma)
-
+    # log_Hpsi_sigma = nkjax.apply_chunked(lambda x: log_psi(parameters, x), chunk_size=chunk_size)(sigma)
     # compute the expectation value of O 
     eta, etap_mels = O.get_conn_padded(sigma)
     _eta = eta.reshape(-1, eta.shape[-1])
@@ -90,12 +106,19 @@ def expect_grad_is(
         _eta
     )
     # del _eta_Hpsi
+    log_psi_eta = log_psi_eta.reshape(eta.shape[:-1])
+    w_is_sigma = jnp.abs(jnp.exp(log_psi_sigma - log_Hpsi_sigma))**2
 
-    log_psi_eta = log_psi_eta.reshape(eta_psi.shape[:-1])
+    Z_ratio = 1/nkstats.mean(w_is_sigma)
 
     # IS estimate of mean of O
-    O_loc_sigma = log_psi_sigma*jnp.sum(etap_mels * jnp.exp(log_psi_eta), axis=-1)/jnp.abs(jnp.exp(log_Hpsi_sigma))**2
+    # O_loc_sigma = jnp.exp(log_psi_sigma)*jnp.sum(etap_mels * jnp.exp(log_psi_eta), axis=-1)/jnp.abs(jnp.exp(log_Hpsi_sigma))**2
+    # O_mean = nkstats.mean(O_loc_sigma)
+
+    O_loc_sigma = w_is_sigma*jnp.sum(etap_mels * jnp.exp(log_psi_eta- jnp.expand_dims(log_psi_sigma, axis=-1)), axis=-1)
     O_mean = nkstats.mean(O_loc_sigma)
+
+    # jax.debug.print("{x}", x=O_mean)
 
     # estimate normalization constant for centering, ie mean of O^2, or inverse of average of importance weights
     # eta2, eta2_mels = operator._operator_squared.get_conn_padded(sigma)
@@ -107,65 +130,94 @@ def expect_grad_is(
     # )
     # O2_estim = nkstats.mean(O2_loc_eta)
 
-    w_is_sigma = jnp.abs(jnp.exp(log_psi_sigma - log_Hpsi_sigma))**2
-
-    Z_ratio = 1/nkstats.mean(w_is_sigma)
-
     if not return_grad:
 
-        op_loc_sigma_R = jnp.sum(
-            1/(eta_p_mels
-            * jnp.exp(log_psi_eta - log_psi_sigma)).conj(),
-            axis=-1,
-        )
+        # op_loc_sigma_R = jnp.sum(
+        #     1/(eta_p_mels
+        #     * jnp.exp(log_psi_eta - log_psi_sigma)).conj(),
+        #     axis=-1,
+        # )
 
         op_loc = O_loc_sigma * Z_ratio
 
         return nkstats.statistics(op_loc)
 
     else:
-        # jacobian of actual wavefunction (because of IS weight), conjugate=True returns J^\dagger
-        # vjp_exp_fun = nkjax.vjp_chunked(
-        #     lambda w, sigma: jnp.exp(log_psi({"params": w, **model_state}, sigma)),
-        #     parameters,
-        #     sigma_phi,
-        #     conjugate=True,
-        #     chunk_size=chunk_size,
-        #     chunk_argnums=1,
-        #     nondiff_argnums=1,
-        # )
+        def dagger_pytree(jac_pytree):
+            return tree_map(lambda x: x.conj().T, jac_pytree)
 
+        def vjp_pytree(jac_pytree, vector):
+            return tree_map(lambda jac_block: jnp.einsum("...i,i->...", jac_block, vector), jac_pytree)
         # compute actual jacobian instead of vjp
-        jacobian_dense = nkjax.jacobian(
-            lambda w, sigma: jnp.exp(log_psi({"params": w, **model_state}, sigma)),
-            parameters,
-            sigma_phi,
+        # jacobian_pytree = nkjax.jacobian(
+        #     lambda w, sigma: jnp.exp(log_psi(w, sigma)),
+        #     parameters["params"],
+        #     sigma,
+        #     model_state,
+        #     mode = "holomorphic",
+        #     chunk_size=chunk_size,
+        #     dense=False
+        # )
+        jacobian_pytree = nkjax.jacobian(
+            lambda w, sigma: log_psi(w, sigma),
+            parameters["params"],
+            sigma,
             model_state,
+            mode = "holomorphic",
             chunk_size=chunk_size,
+            dense=False
         )
-        jac_ct = jacobian_dense.conj().T - Z_ratio*jnp.exp(log_psi_sigma).conj()*nkstats.mean(jnp.exp(-2*jnp.abs(log_Hpsi_sigma))[:,None]*jacobian.dense.conj().T)
 
-        n_samples = log_phi_sigma.size * mpi.n_nodes
+        # jac_ct = jacobian_dense.conj().T - Z_ratio*jnp.exp(log_psi_sigma).conj()*nkstats.mean(jnp.exp(-2*jnp.abs(log_Hpsi_sigma))[None,:]*jacobian_dense.conj().T)
+
+        # n_samples = log_phi_sigma.size * mpi.n_nodes
 
         # gradient
-        op_loc_sigma_R = jnp.sum(
-            sigma_p_mels
-            * jnp.exp(log_psi_sigma_p + jnp.expand_dims(log_psi_sigma.conj() - 2 * log_phi_sigma.real, -1)),
-            axis=-1,
+        # op_loc_sigma_R = jnp.sum(
+        #     sigma_p_mels
+        #     * jnp.exp(log_psi_sigma_p + jnp.expand_dims(log_psi_sigma.conj() - 2 * log_phi_sigma.real, -1)),
+        #     axis=-1,
+        # )
+       
+        # op_loc = jnp.sum(etap_mels * jnp.exp(log_psi_eta), axis=-1)/jnp.abs(jnp.exp(log_Hpsi_sigma))**2
+        # op_loc_c = op_loc - (jnp.exp(log_psi_sigma)/jnp.abs(jnp.exp(log_Hpsi_sigma))**2)* Z_ratio * O_mean
+
+        # jac_ct_pytree =  tree_map(
+        #     lambda x: x - Z_ratio * jax.lax.broadcast_in_dim(jnp.exp(log_psi_sigma).conj(), x.T.shape, (0,)).T * jnp.expand_dims(nkstats.mean(jax.lax.broadcast_in_dim(1/jnp.abs(jnp.exp(log_Hpsi_sigma))**2, x.T.shape, (0,)).T  * x, axis = -1), axis=-1),
+        #     dagger_pytree(jacobian_pytree))
+
+        # grad_pytree = vjp_pytree(jac_ct_pytree, op_loc_c)
+        # log version to check
+        jacobians_avg = jax.tree_util.tree_map(
+                partial(jnp.mean, axis=0, keepdims=True), _multiply_by_pdf(jacobian_pytree, w_is_sigma)
+        )
+        jacobians = jax.tree_util.tree_map(
+            lambda x, y: x - Z_ratio*y, jacobian_pytree, jacobians_avg
         )
 
-        op_loc = O_loc_sigma
-        op_loc_c = op_loc - Z_ratio*(jnp.exp(log_psi_sigma - 2*jnp.abs(log_Hpsi_sigma)))*nkstats.mean(op_loc)
+        # jacobians = jacobian_pytree = nkjax.jacobian(
+        #     lambda w, sigma: log_psi(w, sigma),
+        #     parameters["params"],
+        #     sigma,
+        #     model_state,
+        #     mode = "holomorphic",
+        #     chunk_size=chunk_size,
+        #     dense=False,
+        #     center=True
+        # )
+        # jax.debug.print("{x}", x=tree_map(lambda x,y: jnp.abs(x/y), jacobians_l, jacobians ))
+        op_loc = jnp.sum(etap_mels * jnp.exp(log_psi_eta - jnp.expand_dims(log_psi_sigma,-1)), axis=-1)
+        op_loc_c = w_is_sigma * (op_loc - Z_ratio * O_mean)
 
-        # R = jnp.exp(2 * (log_psi_sigma.real - log_phi_sigma.real))
-        # R_O = nkstats.mean(op_loc) * R
-        # vec = (op_loc_sigma_R - R_O) * Z_ratio / n_samples
-        grad = 1/(log_psi_sigma.size) * (jac_ct @ op_loc_c)
-        (O_grad,) = vjp_exp_fun(op_loc_c)
+        # jac_ct_pytree =  tree_map(
+        # lambda x: x - Z_ratio * jnp.expand_dims(nkstats.mean(jax.lax.broadcast_in_dim(w_is_sigma, x.T.shape, (0,)).T  * x, axis = -1), axis=-1),
+        # dagger_pytree(jacobian_pytree))
 
-        return nkstats.statistics(op_loc), jax.tree_util.tree_map(
-            lambda x: mpi.mpi_sum_jax(x)[0], O_grad
-        )
+        grad_pytree = vjp_pytree(dagger_pytree(jacobians), op_loc_c)
+        # Final gradient (normalize by sample size)
+        grad = tree_map(lambda g: Z_ratio * g.T / log_psi_sigma.size, grad_pytree)
+
+        return nkstats.statistics(op_loc*Z_ratio), grad
 
 # @partial(jax.jit, static_argnames=("logψ", "return_grad", "chunk_size"))
 # def expect_grad_is(
