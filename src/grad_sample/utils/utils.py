@@ -15,6 +15,11 @@ def save_cb(step, logdata, driver):
     logdata["dp"] = dp
     return True
 
+def save_rel_err(step, logdata, driver, e_gs):
+    e = driver.energy.mean
+    logdata["rel_err"] = jnp.abs(e-e_gs)/jnp.abs(e_gs)
+    return True
+    
 def e_diag(H_sp):
     eig_vals, eig_vecs = eigsh(
         H_sp, k=2, which="SA"

@@ -1,18 +1,19 @@
 defaults:
   - _self_
-  - model: j1j2
-  - ansatz: vit
+  - model: xxz
+  - ansatz: rbm
   - task: train
 
-device: "4"
+device: "2"
+is : False
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
 lr : 0.005
-diag_shift : 1.e-2
+diag_shift : 1.e-3
 n_iter : 2000
-sample_size : 0
-chunk_size_jac: 2574
+sample_size : 16
+chunk_size_jac: 330
 chunk_size_vmap : 100
 save_every : 10
 base_path : /scratch/.amisery/grad_sample/

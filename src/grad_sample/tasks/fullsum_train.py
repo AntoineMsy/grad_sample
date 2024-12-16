@@ -11,6 +11,7 @@ from grad_sample.utils.utils import save_cb
 
 import json
 import matplotlib.pyplot as plt
+from grad_sample.utils import save_rel_err
 
 class Trainer(Problem):
     def __init__(self, cfg: DictConfig, plot_training_curve=True):
@@ -18,7 +19,10 @@ class Trainer(Problem):
         # Save the current config to the custom path
         with open(os.path.join(self.output_dir, "config.yaml"), "w") as f:
             f.write(OmegaConf.to_yaml(self.cfg))
-        self.gs = nk.VMC(hamiltonian=self.model.H, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        if self.hpsi_is:
+            self.gs = nk.VMC(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        else:
+            self.gs = nk.VMC(hamiltonian=self.model.H, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         self.plot_training_curve = True
 
     def __call__(self):

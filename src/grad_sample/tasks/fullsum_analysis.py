@@ -110,8 +110,6 @@ class FullSumPruning(Problem):
         # compute local energies
         self.Hloc = self.model.H_sp @ self.vstate_arr / self.vstate_arr
         self.Hloc_c = jnp.sqrt(self.pdf)*(self.Hloc - jnp.sum(self.Hloc*self.pdf))
-
-        
         self.mode = "holomorphic"
         # uncentered jacobian
         self.jacobian_orig = nkjax.jacobian(

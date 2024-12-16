@@ -12,6 +12,11 @@ from grad_sample.utils.plotting_setup import *
 from grad_sample.ansatz.cnn import final_actfn
 from deepnets.net.ViT.body import extract_patches2d
 
+from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
+from grad_sample.is_hpsi.operator import IS_Operator
+
+from grad_sample.is_hpsi.expect import *
+
 class Problem:
     def __init__(self, cfg : DictConfig):
         self.cfg = deepcopy(cfg)
@@ -52,6 +57,7 @@ class Problem:
          "netket.experimental.models.LSTMNet": "RNN",
          "grad_sample.ansatz.cnn.ConvReLU": "CNN",
          "deepnets.net.ViT.net.ViT_Vanilla": "ViT"}
+         
         self.ansatz_name = dict_name[self.cfg.ansatz._target_]
 
         # set hparams and relevant variables
@@ -66,6 +72,7 @@ class Problem:
 
         # self.holomorphic = True
         self.sample_size = self.cfg.get("sample_size")
+        self.hpsi_is = self.cfg.get("is")
         
         if self.sample_size == 0:
             if self.chunk_size_jac < self.model.hi.n_states:
@@ -85,7 +92,11 @@ class Problem:
             print("MC state loaded, num samples %d"%self.Nsample)
         self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
 
-        self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
+        if self.hpsi_is:
+            self.is_op = IS_Operator(operator = self.model.H_jax)
+            self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac), solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
+        else:
+            self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         
         self.diag_exp = int(-jnp.log10(self.diag_shift)+1)
@@ -95,7 +106,9 @@ class Problem:
         else:
             if self.sample_size == 0:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/saved_{self.save_every}_{self.diag_exp}"
-            else : 
+            elif self.hpsi_is: 
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_IS/saved_{self.save_every}_{self.diag_exp}"
+            else:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/saved_{self.save_every}_{self.diag_exp}"
             
         # create dir if it doesn't already exist

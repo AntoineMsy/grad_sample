@@ -3,23 +3,23 @@ solver_fn:
   _target_: netket.optimizer.solver.cholesky
 lr: 0.005
 n_iter: 2000
-
 chunk_size_vmap: 100
 save_every: 10
-sample_size: 0
+sample_size: 16
 base_path: /scratch/.amisery/grad_sample/
 
-model:
-  _target_: grad_sample.models.heisenberg.XXZ
-  h: 1.5
-  L: 16
-diag_shift: 0.001
-chunk_size_jac: 585
+# model:
+#   _target_: grad_sample.models.heisenberg.XXZ
+#   h: 1.5
+#   L: 16
+# diag_shift: 0.001
+# chunk_size_jac: 585
 # model:
 #   _target_: grad_sample.models.ising.TFI
 #   h: 1.0
 #   L: 3
 # diag_shift: 1e-10
+# chunk_size_jac: 512
 
 # model:
 #   _target_: grad_sample.models.heisenberg.J1J2
@@ -29,14 +29,15 @@ chunk_size_jac: 585
 #   acting_on_subspace : 0
 # diag_shift: 1e-5
 # chunk_size_jac: 585
-# model: 
-#   _target_ : grad_sample.models.heisenberg.Heisenberg1d
-#   J: 1.0
-#   L: 14
-#   sign_rule: False
-#   acting_on_subspace: 0
-# diag_shift: 1e-4
-# chunk_size_jac: 572
+
+model: 
+  _target_ : grad_sample.models.heisenberg.Heisenberg1d
+  J: 1.0
+  L: 14
+  sign_rule: False
+  acting_on_subspace: 0
+diag_shift: 1e-4
+chunk_size_jac: 572
 
 ansatz:
   _target_: netket.models.RBM

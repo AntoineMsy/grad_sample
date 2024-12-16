@@ -27,7 +27,7 @@ from netket.jax._jacobian.logic import _multiply_by_pdf
 
 @expect.dispatch
 def expect_IS_Operator_is(
-    vstate: MCState, op: IS_Operator, chunk_size: None
+    vstate: MCState, op: IS_Operator, chunk_size: int | None
 ):
     if op.hilbert != vstate.hilbert:
         raise TypeError("Hilbert spaces should match")
@@ -50,10 +50,37 @@ def expect_IS_Operator_is(
         chunk_size=chunk_size,
     )
 
+@expect_and_grad.dispatch
+def expect_and_grad_default_formula(
+    vstate: MCState,
+    O: IS_Operator,
+    chunk_size: int | None,
+    *args,
+    mutable: CollectionFilter = False,
+    use_covariance: Optional[bool] = None,
+) -> tuple[Stats, PyTree]:
+
+    if use_covariance is None:
+        use_covariance = O.operator.is_hermitian
+
+    if use_covariance:
+        # Implementation of expect_and_grad for `use_covariance == True` (due to the Literal[True]
+        # type in the signature).` This case is equivalent to the composition of the
+        # `expect_and_forces` and `force_to_grad` functions.
+        # return expect_and_grad_from_covariance(vstate, Ô, *args, mutable=mutable)
+        O_exp, O_grad = expect_and_forces(vstate, O, chunk_size, *args, mutable=mutable)
+        O_grad = force_to_grad(O_grad, vstate.parameters)
+        return O_exp, O_grad
+    else:
+        raise NotImplementedError
+        # return expect_and_grad_nonhermitian(
+        #    vstate, Ô, chunk_size, *args, mutable=mutable
+        # )
+
 
 @expect_and_forces.dispatch
 def expect_and_forces_is(
-    vstate: MCState, op: IS_Operator, chunk_size: None, *, mutable
+    vstate: MCState, op: IS_Operator, chunk_size: int | None, *, mutable
 ):
     if op.hilbert != vstate.hilbert:
         raise TypeError("Hilbert spaces should match")
@@ -86,6 +113,9 @@ def expect_and_forces_is(
     #     return_grad=True,
     #     chunk_size=chunk_size,
     # )
+
+    
+
 
 @partial(jax.jit, static_argnames=("log_psi", "log_Hpsi", "return_grad", "chunk_size"))
 def expect_grad_is(
@@ -217,7 +247,7 @@ def expect_grad_is(
         # Final gradient (normalize by sample size)
         grad = tree_map(lambda g: Z_ratio * g.T / log_psi_sigma.size, grad_pytree)
 
-        return nkstats.statistics(op_loc*Z_ratio), grad
+        return nkstats.statistics(w_is_sigma*op_loc*Z_ratio), grad
 
 # @partial(jax.jit, static_argnames=("logψ", "return_grad", "chunk_size"))
 # def expect_grad_is(
@@ -317,31 +347,3 @@ def expect_grad_is(
 #         return nkstats.statistics(op_loc), jax.tree_util.tree_map(
 #             lambda x: mpi.mpi_sum_jax(x)[0], O_grad
 #         )
-
-
-@expect_and_grad.dispatch
-def expect_and_grad_default_formula(
-    vstate: MCState,
-    O: IS_Operator,
-    chunk_size: Optional[int],
-    *args,
-    mutable: CollectionFilter = False,
-    use_covariance: Optional[bool] = None,
-) -> tuple[Stats, PyTree]:
-
-    if use_covariance is None:
-        use_covariance = O.operator.is_hermitian
-
-    if use_covariance:
-        # Implementation of expect_and_grad for `use_covariance == True` (due to the Literal[True]
-        # type in the signature).` This case is equivalent to the composition of the
-        # `expect_and_forces` and `force_to_grad` functions.
-        # return expect_and_grad_from_covariance(vstate, Ô, *args, mutable=mutable)
-        O_exp, O_grad = expect_and_forces(vstate, O, chunk_size, *args, mutable=mutable)
-        O_grad = force_to_grad(O_grad, vstate.parameters)
-        return O_exp, O_grad
-    else:
-        raise NotImplementedError
-        # return expect_and_grad_nonhermitian(
-        #    vstate, Ô, chunk_size, *args, mutable=mutable
-        # )

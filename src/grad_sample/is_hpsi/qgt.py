@@ -109,26 +109,24 @@ def QGTJacobianDenseImportanceSampling(
 
     log_Hpsi, Hpsi_vars = importance_operator.get_log_importance(vstate)
 
-    Hpsi_samples = vstate.samples_distribution(
+    sigma = vstate.samples_distribution(
         log_Hpsi,
-        variables=variables_Hpsi,
+        variables=Hpsi_vars,
         resample_fraction=importance_operator.resample_fraction,
     )
-
     if mode is None:
         mode = nkjax.jacobian_default_mode(
             vstate._apply_fun,
             vstate.parameters,
             vstate.model_state,
-            Hpsi_samples,
+            sigma,
             holomorphic=holomorphic,
         )
 
-    if Hpsi_samples.ndim >= 3:
+    if sigma.ndim >= 3:
         # use jit so that we can do it on global shared array
-        Hpsi_samples = jax.jit(jax.lax.collapse, static_argnums=(1, 2))(Hpsi_samples, 0, 2)
-    
-    sqrt_n_samp = jnp.sqrt(Hpsi_samples.shape[0] * mpi.n_nodes)  # maintain weak type
+        sigma = jax.jit(jax.lax.collapse, static_argnums=(1, 2))(sigma, 0, 2)
+    sqrt_n_samp = jnp.sqrt(sigma.shape[0] * mpi.n_nodes)  # maintain weak type
 
     """
     J_ψ_η = nkjax.jacobian(
@@ -148,7 +146,7 @@ def QGTJacobianDenseImportanceSampling(
     jac_dense = nkjax.jacobian(
         vstate._apply_fun,
         vstate.parameters,
-        Hpsi_samples,
+        sigma,
         vstate.model_state,
         mode=mode,
         chunk_size=chunk_size,
@@ -156,16 +154,15 @@ def QGTJacobianDenseImportanceSampling(
         center=False,
         _sqrt_rescale=False,
     )
-    print(sigma.shape)
     op = importance_operator.operator
-    log_psi_sigma = nkjax.apply_chunked(lambda x: log_psi(parameters, x), chunk_size=chunk_size)(sigma)
+    log_psi_sigma = nkjax.apply_chunked(lambda x: vstate.model.apply({"params":vstate.parameters}, x), chunk_size=chunk_size)(sigma)
 
     log_Hpsi_sigma = nkjax.apply_chunked(lambda x: log_Hpsi(Hpsi_vars, x), chunk_size=chunk_size)(sigma)
     w_is_sigma = jnp.exp(2*(log_psi_sigma - log_Hpsi_sigma))
     Z_ratio = 1/jnp.mean(w_is_sigma)
 
-    jacobians = jnp.sqrt(w_is_sigma)[None,:] * (jac_dense - Z_ratio*jnp.mean(w_is_sigma[None,:]*jac_dense, axis=1))
-    
+    jacobians = jnp.sqrt(Z_ratio*w_is_sigma)[:,None]/sqrt_n_samp * (jac_dense - Z_ratio*jnp.mean(w_is_sigma[:,None]*jac_dense, axis=0))
+
     shift, offset = to_shift_offset(diag_shift, diag_scale)
 
     if offset is not None:
