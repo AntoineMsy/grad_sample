@@ -32,7 +32,7 @@ def expect_IS_Operator_is(
     if op.hilbert != vstate.hilbert:
         raise TypeError("Hilbert spaces should match")
 
-    apply_fun, variables = _prepare_H(vstate._apply_fun, vstate.variables, op)
+    apply_fun, variables = op.get_log_importance(vstate._apply_fun)
 
     Hpsi_samples = vstate.samples_distribution(
         apply_fun, variables=variables, resample_fraction=op.resample_fraction
@@ -85,7 +85,7 @@ def expect_and_forces_is(
     if op.hilbert != vstate.hilbert:
         raise TypeError("Hilbert spaces should match")
 
-    apply_fun, variables = _prepare_H(vstate._apply_fun, vstate.variables, op)
+    apply_fun, variables = op.get_log_importance(vstate._apply_fun)
 
     Hpsi_samples = vstate.samples_distribution(
         apply_fun, variables=variables, resample_fraction=op.resample_fraction
