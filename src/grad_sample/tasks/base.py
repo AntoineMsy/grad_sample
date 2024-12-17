@@ -27,7 +27,7 @@ class Problem:
 
         # Instantiate model class (Ising, Heisenberg...)
         self.model = instantiate(self.cfg.model)
-
+        print(jax.devices())
         # Instantiate ansatz
         print(self.cfg.ansatz)
         self.mode = "holomorphic"

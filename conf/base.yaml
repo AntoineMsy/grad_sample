@@ -4,7 +4,7 @@ defaults:
   - ansatz: rbm
   - task: train
 
-device: null
+device: "2"
 is_mode : hpsi
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
@@ -16,4 +16,4 @@ sample_size : 9
 chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : 10
-base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample
+base_path : /scratch/.amisery/grad_sample/
