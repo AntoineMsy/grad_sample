@@ -1,4 +1,7 @@
 from netket_pro.utils import make_logpsi_U_afun, make_logpsi_sum_afun
+import flax
+import netket.jax as nkjax
+import jax.numpy as jnp
 
 def _prepare_H(log_psi, log_psi_variables, op):
     # use nkpro utils to compute hpsi wavefunction, sum disabled for now
@@ -13,7 +16,6 @@ def _prepare_H(log_psi, log_psi_variables, op):
     # )
 
     return log_Hpsi, log_Hpsi_variables
-
 
 def make_logpsi_smeared_afun(
     logpsi_fun, variables, alpha
@@ -30,7 +32,7 @@ def make_logpsi_smeared_afun(
     return logpsi_smeared_fun, new_variables
 
 def _logpsi_smeared_fun(afun, variables, x):
-    variables_afun, epsilon = flax.core.pop(variables, "alpha")
+    variables_afun, alpha = flax.core.pop(variables, "alpha")
 
     if alpha is None:
         alpha = 1

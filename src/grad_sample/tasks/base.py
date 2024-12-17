@@ -112,7 +112,8 @@ class Problem:
             
         # create dir if it doesn't already exist
         os.makedirs(self.output_dir, exist_ok=True)
-        
+        print(self.output_dir)
+        print("dir created")
         self.state_dir = self.output_dir + "/state"
 
         self.E_gs = e_diag(self.model.H_sp)

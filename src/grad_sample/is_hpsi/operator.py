@@ -5,7 +5,7 @@ from netket.operator import DiscreteJaxOperator
 
 from jax.tree_util import register_pytree_node_class
 
-from grad_sample.is_hpsi.is_utils import _prepare_H
+from grad_sample.is_hpsi.is_utils import _prepare_H, make_logpsi_smeared_afun
 
 
 @register_pytree_node_class
@@ -118,4 +118,7 @@ class IS_Operator(AbstractObservable):
         return res
 
     def get_log_importance(self, vstate):
-        return _prepare_H(vstate._apply_fun, vstate.variables, self)
+        if self.mode == "hpsi":
+            return _prepare_H(vstate._apply_fun, vstate.variables, self)
+        elif type(self.mode) == float:
+            return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.mode)

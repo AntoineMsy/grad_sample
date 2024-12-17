@@ -17,15 +17,16 @@ def save_cb(step, logdata, driver):
     return True
 
 def save_rel_err_fs(step, logdata, driver, e_gs, save_every=1):
-    fs_state = FullSumState(hilbert = driver.state.hilbert, model = driver.state.model, chunk_size=330, seed=0)
-    fs_state.variables = copy.deepcopy(driver.state.variables)
-    try:
-        # is operator case
-        e = fs_state.expect(driver._ham.operator).mean.real
-    except: 
-        e = fs_state.expect(driver._ham).mean.real
+    if driver.step_count % save_every == 0:
+        fs_state = FullSumState(hilbert = driver.state.hilbert, model = driver.state.model, chunk_size=330, seed=0)
+        fs_state.variables = copy.deepcopy(driver.state.variables)
+        try:
+            # is operator case
+            e = fs_state.expect(driver._ham.operator).mean.real
+        except: 
+            e = fs_state.expect(driver._ham).mean.real
 
-    logdata["rel_err"] = jnp.abs(e-e_gs)/jnp.abs(e_gs)
+        logdata["rel_err"] = jnp.abs(e-e_gs)/jnp.abs(e_gs)
     return True
 
 def save_rel_err(step, logdata, driver, e_gs, save_every=1):

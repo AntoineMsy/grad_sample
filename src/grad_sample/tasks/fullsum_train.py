@@ -25,7 +25,7 @@ class Trainer(Problem):
         else:
             self.gs = nk.VMC(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         self.plot_training_curve = True
-        self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, save_every = 1)
+        self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, save_every =25)
 
     def __call__(self):
         self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log), callback=(self.save_rel_err_cb,))
