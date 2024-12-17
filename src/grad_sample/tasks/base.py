@@ -8,9 +8,9 @@ import scipy
 import jax.numpy as jnp
 import jax
 from grad_sample.utils.utils import save_cb, e_diag
-from grad_sample.utils.plotting_setup import *
+# from grad_sample.utils.plotting_setup import *
 from grad_sample.ansatz.cnn import final_actfn
-from deepnets.net.ViT.body import extract_patches2d
+from deepnets.net.patches import extract_patches2d
 
 from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
 from grad_sample.is_hpsi.operator import IS_Operator
@@ -21,9 +21,9 @@ class Problem:
     def __init__(self, cfg : DictConfig):
         self.cfg = deepcopy(cfg)
 
-        self.device = self.cfg.get("device")
-        # set working device
-        os.environ["CUDA_VISIBLE_DEVICES"]= str(self.device)
+        # self.device = self.cfg.get("device")
+        # # set working device
+        # os.environ["CUDA_VISIBLE_DEVICES"]= str(self.device)
 
         # Instantiate model class (Ising, Heisenberg...)
         self.model = instantiate(self.cfg.model)
@@ -72,7 +72,7 @@ class Problem:
 
         # self.holomorphic = True
         self.sample_size = self.cfg.get("sample_size")
-        self.hpsi_is = self.cfg.get("is")
+        self.is_mode = self.cfg.get("is_mode")
         
         if self.sample_size == 0:
             if self.chunk_size_jac < self.model.hi.n_states:
@@ -84,16 +84,15 @@ class Problem:
             print(self.model.hi.n_states )
             self.vstate = nk.vqs.FullSumState(hilbert=self.model.hi, model=self.ansatz, chunk_size=self.chunk_size, seed=0)
         else:
-            self.Nsample = self.sample_size*(self.alpha*(self.model.Ns)**2 + self.alpha*self.model.Ns + self.model.Ns)
-            self.chunk_size = self.Nsample // (self.Nsample // self.chunk_size_jac)
-            self.chunk_size = None
+            self.Nsample = 2**self.sample_size
+            self.chunk_size = self.chunk_size_jac
             self.sampler = nk.sampler.ExactSampler(hilbert= self.model.hi)
             self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample, seed=0)
             print("MC state loaded, num samples %d"%self.Nsample)
         self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
 
-        if self.hpsi_is:
-            self.is_op = IS_Operator(operator = self.model.H_jax)
+        if self.is_mode != None:
+            self.is_op = IS_Operator(operator = self.model.H_jax, mode=self.is_mode)
             self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac), solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         else:
             self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
@@ -106,8 +105,8 @@ class Problem:
         else:
             if self.sample_size == 0:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/saved_{self.save_every}_{self.diag_exp}"
-            elif self.hpsi_is: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_IS/saved_{self.save_every}_{self.diag_exp}"
+            elif self.is_mode != None: 
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_mode}/saved_{self.save_every}_{self.diag_exp}"
             else:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/saved_{self.save_every}_{self.diag_exp}"
             

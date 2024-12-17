@@ -19,6 +19,7 @@ class IS_Operator(AbstractObservable):
         # second_order: bool = True,
         # square_fast: bool = False,
         resample_fraction: Optional[int] = None,
+        mode: str | float = "hpsi"
         # reweight_norm: bool = True,
     ):
         """
@@ -42,6 +43,7 @@ class IS_Operator(AbstractObservable):
         # self._epsilon = epsilon
         # self._second_order = second_order
         self._resample_fraction = resample_fraction
+        self.mode = mode
         # self._reweight_norm = reweight_norm
 
         # self._square_fast = square_fast

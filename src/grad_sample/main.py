@@ -48,7 +48,8 @@ def main(cfg: DictConfig):
         # take any task from cfg and run it
         device = cfg.get("device")
         # set working device
-        os.environ["CUDA_VISIBLE_DEVICES"]= str(device)
+        if device != None :
+            os.environ["CUDA_VISIBLE_DEVICES"]= str(device)
         task = instantiate(cfg.task, cfg)
         task()
 
