@@ -100,18 +100,29 @@ class Problem:
         # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         
         self.diag_exp = int(-jnp.log10(self.diag_shift)+1)
-        
+        self.diag_exp = self.diag_shift
         if "heisenberg" in self.model.name or "J1J2" in self.model.name:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}_s{int(self.model.sign_rule)}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/saved_{self.save_every}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}_s{int(self.model.sign_rule)}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
         else:
             if self.sample_size == 0:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/saved_{self.save_every}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
             elif self.is_mode != None: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_mode}/saved_{self.save_every}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_mode}/{self.lr}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/saved_{self.save_every}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
             
         # create dir if it doesn't already exist
+        self.run_index = self.cfg.get("run_index")
+        if self.run_index == None:
+            run_index = 0
+            while True:
+                run_dir = os.path.join(self.output_dir, f"run_{run_index}")
+                if not os.path.exists(run_dir):
+                    os.makedirs(run_dir)
+                    self.output_dir = run_dir  # Update the output_dir to point to the newly created run_N folder
+                    break
+                run_index += 1
+
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
@@ -120,6 +131,7 @@ class Problem:
         print("The ground state energy is:", self.E_gs)
         
         self.json_log = nk.logging.JsonLog(output_prefix=self.output_dir)
-        self.state_log = nk.logging.StateLog(output_prefix=self.state_dir, save_every=self.save_every)
+        if self.save_every != None:
+            self.state_log = nk.logging.StateLog(output_prefix=self.state_dir, save_every=self.save_every)
 
     

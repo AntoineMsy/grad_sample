@@ -1,14 +1,14 @@
 #!/bin/bash
 
 # Define device-specific commands as strings, separated by newlines
-# device_1_commands="python main.py sample_size=9 device='1' n_iter=6000 is_mode=0.005
-# python main.py sample_size=9 device='1' n_iter=6000 is=0.005"
+device_1_commands="python main.py sample_size=9 device='1' n_iter=6000 is_mode=0.005
+python main.py sample_size=9 device='1' n_iter=6000 is=0.005"
 
-# device_2_commands="python main.py sample_size=9 device='2' n_iter=6000 is_mode=0.5
-# python main.py sample_size=9 device='2' n_iter=8000 is_mode=1.3"
+device_2_commands="python main.py sample_size=9 device='2' n_iter=6000 is_mode=0.5
+python main.py sample_size=9 device='2' n_iter=8000 is_mode=1.3"
 
-# device_3_commands="python main.py sample_size=9 device='3' n_iter=6000 is_mode=1.
-# python main.py sample_size=9 device='3' n_iter=6000 is_mode=1."
+device_3_commands="python main.py sample_size=9 device='3' n_iter=6000 is_mode=1.
+python main.py sample_size=9 device='3' n_iter=6000 is_mode=1."
 
 device_4_commands="python main.py sample_size=9 device='4' n_iter=6000 is_mode=0.8
 python main.py sample_size=8 device='4' n_iter=6000 is_mode=0.8"

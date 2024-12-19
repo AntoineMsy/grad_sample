@@ -222,7 +222,7 @@ def expect_grad_is(
         jacobians = jax.tree_util.tree_map(
             lambda x, y: x - Z_ratio*y, jacobian_pytree, jacobians_avg
         )
-
+        
         # jacobians = jacobian_pytree = nkjax.jacobian(
         #     lambda w, sigma: log_psi(w, sigma),
         #     parameters["params"],

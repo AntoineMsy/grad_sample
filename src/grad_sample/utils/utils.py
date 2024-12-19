@@ -16,9 +16,8 @@ def save_cb(step, logdata, driver):
     logdata["dp"] = dp
     return True
 
-def save_rel_err_fs(step, logdata, driver, e_gs, save_every=1):
+def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
     if driver.step_count % save_every == 0:
-        fs_state = FullSumState(hilbert = driver.state.hilbert, model = driver.state.model, chunk_size=330, seed=0)
         fs_state.variables = copy.deepcopy(driver.state.variables)
         try:
             # is operator case

@@ -5,7 +5,7 @@ defaults:
   - task: train
 
 device: "4"
-is_mode : 2.0
+is_mode : null
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
@@ -15,5 +15,6 @@ n_iter : 6000
 sample_size : 10
 chunk_size_jac: 1024
 chunk_size_vmap : 100
-save_every : 10
-base_path : /scratch/.amisery/grad_sample/
+save_every : null
+run_index : null
+base_path : /scratch/.amisery/grad_sample_mc_hparams/
