@@ -74,6 +74,7 @@ class Problem:
         self.sample_size = self.cfg.get("sample_size")
         self.is_mode = self.cfg.get("is_mode")
         
+        
         if self.sample_size == 0:
             if self.chunk_size_jac < self.model.hi.n_states:
                 self.chunk_size = self.model.hi.n_states // (self.model.hi.n_states//self.chunk_size_jac)
@@ -89,10 +90,10 @@ class Problem:
             self.sampler = nk.sampler.ExactSampler(hilbert= self.model.hi)
             self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample, seed=0)
             print("MC state loaded, num samples %d"%self.Nsample)
-        self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
+        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
 
         if self.is_mode != None:
-            self.is_op = IS_Operator(operator = self.model.H_jax, mode=self.is_mode)
+            self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=self.is_mode)
             self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac), solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         else:
             self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
@@ -113,7 +114,6 @@ class Problem:
         # create dir if it doesn't already exist
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
-        print("dir created")
         self.state_dir = self.output_dir + "/state"
 
         self.E_gs = e_diag(self.model.H_sp)

@@ -4,15 +4,15 @@ defaults:
   - ansatz: rbm
   - task: train
 
-device: "2"
-is_mode : hpsi
+device: "4"
+is_mode : 2.0
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
 lr : 0.001
-diag_shift : 1.e-3
+diag_shift : 1.e-4
 n_iter : 6000
-sample_size : 9
+sample_size : 10
 chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : 10

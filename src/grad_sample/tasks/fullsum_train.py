@@ -13,6 +13,7 @@ import json
 import matplotlib.pyplot as plt
 from grad_sample.utils.utils import save_rel_err_fs
 from functools import partial
+import advanced_drivers as advd
 
 class Trainer(Problem):
     def __init__(self, cfg: DictConfig, plot_training_curve=True):
@@ -24,11 +25,20 @@ class Trainer(Problem):
             self.gs = nk.VMC(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         else:
             self.gs = nk.VMC(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        # if self.is_mode != None:
+        #     # try out vmc_ng driver to use auto diagshift callback
+        #     self.gs = advd.driver.VMC_NG(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+        # else:
+        #     self.gs = advd.driver.VMC_NG(hamiltonian=self.model.H, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+        
         self.plot_training_curve = True
         self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, save_every =25)
+        self.autodiagshift = advd.callbacks.PI_controller_diagshift(diag_shift_max=0.01)
 
     def __call__(self):
-        self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log), callback=(self.save_rel_err_cb,))
+        self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log), callback=(self.save_rel_err_cb))
+
+        # self.gs.run(n_iter=self.n_iter, out=(self.json_log, self.state_log), callback=(self.save_rel_err_cb, self.autodiagshift))
 
         if self.plot_training_curve:
             log_opt = self.output_dir + ".log"

@@ -15,11 +15,11 @@ class IS_Operator(AbstractObservable):
     def __init__(
         self,
         operator: DiscreteJaxOperator,
+        is_mode,
         *,
         # second_order: bool = True,
         # square_fast: bool = False,
         resample_fraction: Optional[int] = None,
-        mode: str | float = "hpsi"
         # reweight_norm: bool = True,
     ):
         """
@@ -43,7 +43,7 @@ class IS_Operator(AbstractObservable):
         # self._epsilon = epsilon
         # self._second_order = second_order
         self._resample_fraction = resample_fraction
-        self.mode = mode
+        self.is_mode = is_mode
         # self._reweight_norm = reweight_norm
 
         # self._square_fast = square_fast
@@ -91,6 +91,7 @@ class IS_Operator(AbstractObservable):
     def tree_flatten(self):
         children = (
             self.operator,
+            self.is_mode,
             # self.epsilon,
             self.resample_fraction
             # self._operator_squared,
@@ -105,9 +106,10 @@ class IS_Operator(AbstractObservable):
         # square_fast = aux_data.pop("square_fast")
 
         # (operator, epsilon, resample_fraction, op_sq) = children
-        (operator, resample_fraction) = children
+        (operator, is_mode, resample_fraction) = children
         res = cls(
             operator,
+            is_mode,
             # epsilon=epsilon,
             resample_fraction=resample_fraction,
             **aux_data,
@@ -118,7 +120,9 @@ class IS_Operator(AbstractObservable):
         return res
 
     def get_log_importance(self, vstate):
-        if self.mode == "hpsi":
+        if self.is_mode == "hpsi":
             return _prepare_H(vstate._apply_fun, vstate.variables, self)
-        elif type(self.mode) == float:
-            return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.mode)
+        elif type(self.is_mode) == float:
+            return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.is_mode)
+        else:
+            print("invalide mode specified")

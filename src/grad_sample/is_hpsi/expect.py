@@ -37,7 +37,6 @@ def expect_IS_Operator_is(
     Hpsi_samples = vstate.samples_distribution(
         apply_fun, variables=variables, resample_fraction=op.resample_fraction
     )
-    print("calling IS expect function")
     return expect_grad_is(
         vstate._apply_fun,
         vstate.parameters,
@@ -138,7 +137,6 @@ def expect_grad_is(
     # del _eta_Hpsi
     log_psi_eta = log_psi_eta.reshape(eta.shape[:-1])
     w_is_sigma = jnp.abs(jnp.exp(log_psi_sigma - log_Hpsi_sigma))**2
-
     Z_ratio = 1/nkstats.mean(w_is_sigma)
 
     # IS estimate of mean of O

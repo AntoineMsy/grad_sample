@@ -35,8 +35,8 @@ def _logpsi_smeared_fun(afun, variables, x):
     variables_afun, alpha = flax.core.pop(variables, "alpha")
 
     if alpha is None:
-        alpha = 1
+        alpha = 2
 
     logpsi1_x = afun(variables_afun, x)
 
-    return jnp.pow(jnp.abs(logpsi1_x), alpha/2)
+    return (alpha/2)*logpsi1_x
