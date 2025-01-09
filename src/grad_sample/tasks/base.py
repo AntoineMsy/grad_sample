@@ -10,7 +10,7 @@ import jax
 from grad_sample.utils.utils import save_cb, e_diag
 # from grad_sample.utils.plotting_setup import *
 from grad_sample.ansatz.cnn import final_actfn
-from deepnets.net.patches import extract_patches2d
+from deepnets.net.patches import extract_patches2d, extract_patches1d, extract_patches_as1d
 
 from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
 from grad_sample.is_hpsi.operator import IS_Operator
@@ -45,7 +45,10 @@ class Problem:
             self.mode = "complex" 
 
         elif "ViT" in self.cfg.ansatz._target_:
-            self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches2d)
+            if self.cfg.ansatz.two_dimensional:
+                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches_as1d)
+            else:
+                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches1d)
             self.alpha = self.cfg.ansatz.d_model
             self.mode = "real"
         else:
@@ -101,13 +104,20 @@ class Problem:
         
         self.diag_exp = int(-jnp.log10(self.diag_shift)+1)
         self.diag_exp = self.diag_shift
+
+        if not self.is_mode == None:
+            if self.is_mode == -1:
+                self.is_name = "hpsi"
+            else:
+                self.is_name = self.is_mode
+                
         if "heisenberg" in self.model.name or "J1J2" in self.model.name:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}_s{int(self.model.sign_rule)}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
         else:
             if self.sample_size == 0:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
             elif self.is_mode != None: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_mode}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_name}/{self.lr}_{self.diag_exp}"
             else:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
             

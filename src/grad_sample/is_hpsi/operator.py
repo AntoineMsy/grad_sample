@@ -120,7 +120,7 @@ class IS_Operator(AbstractObservable):
         return res
 
     def get_log_importance(self, vstate):
-        if self.is_mode == "hpsi":
+        if self.is_mode == -1: #-1 stands for hpsi
             return _prepare_H(vstate._apply_fun, vstate.variables, self)
         elif type(self.is_mode) == float:
             return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.is_mode)

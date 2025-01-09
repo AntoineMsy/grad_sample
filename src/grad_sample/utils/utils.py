@@ -1,7 +1,10 @@
 import netket.jax as nkjax
 from scipy.sparse.linalg import eigsh
 from netket.vqs import FullSumState
+import jax.numpy as jnp
+from grad_sample.is_hpsi.expect import snr_comp
 import copy
+
 def cumsum(lst):
     cumulative_sum = []
     total = 0
@@ -19,6 +22,7 @@ def save_cb(step, logdata, driver):
 def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
     if driver.step_count % save_every == 0:
         fs_state.variables = copy.deepcopy(driver.state.variables)
+        # e = fs_state.expect(driver._ham.operator).mean.real
         try:
             # is operator case
             e = fs_state.expect(driver._ham.operator).mean.real
@@ -26,6 +30,13 @@ def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
             e = fs_state.expect(driver._ham).mean.real
 
         logdata["rel_err"] = jnp.abs(e-e_gs)/jnp.abs(e_gs)
+    return True
+
+def save_snr(step, logdata, driver, save_every=1):
+    if driver.step_count % save_every == 0:
+        snr_jac, snr_f = snr_comp(driver.state, driver._ham, chunk_size=driver.state.chunk_size)
+        logdata['snr_f'] = snr_f
+        logdata['snr_jac'] = snr_jac
     return True
 
 def save_rel_err(step, logdata, driver, e_gs, save_every=1):
@@ -39,8 +50,6 @@ def e_diag(H_sp):
     )  # k is the number of eigenvalues desired,
     E_gs = eig_vals[0]  # "SA" selects the ones with smallest absolute value
     return E_gs
-
-import jax.numpy as jnp
 
 def find_closest_saved_vals(E_err, saved_vals, save_every):
     L = len(E_err)
