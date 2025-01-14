@@ -83,9 +83,10 @@ class Problem:
                 self.chunk_size = self.model.hi.n_states // (self.model.hi.n_states//self.chunk_size_jac)
             else:
                 self.chunk_size = self.model.hi.n_states
-            print(self.model.hi.n_states // self.chunk_size)
-            print(self.chunk_size)
-            print(self.model.hi.n_states )
+            self.chunk_size = None
+            # print(self.model.hi.n_states // self.chunk_size)
+            # print(self.chunk_size)
+            # print(self.model.hi.n_states )
             self.vstate = nk.vqs.FullSumState(hilbert=self.model.hi, model=self.ansatz, chunk_size=self.chunk_size, seed=0)
         else:
             self.Nsample = 2**self.sample_size
@@ -121,7 +122,7 @@ class Problem:
             else:
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
             
-        # create dir if it doesn't already exist
+        # create dir if it doesn't already exist, if not in analysis mode
         self.run_index = self.cfg.get("run_index")
         if self.run_index == None:
             run_index = 0
@@ -132,6 +133,8 @@ class Problem:
                     self.output_dir = run_dir  # Update the output_dir to point to the newly created run_N folder
                     break
                 run_index += 1
+        else :
+            self.output_dir = self.output_dir + '/run_%d'%self.run_index
 
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)

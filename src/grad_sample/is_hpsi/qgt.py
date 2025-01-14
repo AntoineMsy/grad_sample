@@ -112,7 +112,6 @@ def QGTJacobianDenseImportanceSampling(
     sigma = vstate.samples_distribution(
         log_Hpsi,
         variables=Hpsi_vars,
-        resample_fraction=importance_operator.resample_fraction,
     )
     if mode is None:
         mode = nkjax.jacobian_default_mode(
@@ -158,7 +157,7 @@ def QGTJacobianDenseImportanceSampling(
     log_psi_sigma = nkjax.apply_chunked(lambda x: vstate.model.apply({"params":vstate.parameters}, x), chunk_size=chunk_size)(sigma)
 
     log_Hpsi_sigma = nkjax.apply_chunked(lambda x: log_Hpsi(Hpsi_vars, x), chunk_size=chunk_size)(sigma)
-    w_is_sigma = jnp.exp(2*(log_psi_sigma - log_Hpsi_sigma))
+    w_is_sigma = jnp.abs(jnp.exp(log_psi_sigma - log_Hpsi_sigma))**2
     Z_ratio = 1/jnp.mean(w_is_sigma)
 
     jacobians = jnp.sqrt(Z_ratio*w_is_sigma)[:,None]/sqrt_n_samp * (jac_dense - Z_ratio*jnp.mean(w_is_sigma[:,None]*jac_dense, axis=0))

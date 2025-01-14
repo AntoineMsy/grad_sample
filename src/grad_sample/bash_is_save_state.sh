@@ -94,10 +94,10 @@ run_is_mode_on_device() {
 #     run_is_mode_on_device "$device" "$is_mode" &
 # done
 
-is_modes=(2.0)
+is_modes=(0.0 1.0)
 # Assign each is_mode to a specific device
 for i in "${!is_modes[@]}"; do
-    device=$((i + 1))  # Devices are numbered 1, 2, ...
+    device=$((i + 3))  # Devices are numbered 1, 2, ...
     is_mode="${is_modes[$i]}"
     run_is_mode_on_device "$device" "$is_mode" &
 done
