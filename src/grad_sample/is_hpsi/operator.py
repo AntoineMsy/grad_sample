@@ -43,7 +43,7 @@ class IS_Operator(AbstractObservable):
         # self._epsilon = epsilon
         # self._second_order = second_order
         self._resample_fraction = resample_fraction
-        self.is_mode = is_mode
+        self._is_mode = is_mode
         # self._reweight_norm = reweight_norm
 
         # self._square_fast = square_fast
@@ -81,9 +81,9 @@ class IS_Operator(AbstractObservable):
     def is_hermitian(self):
         return self.operator.is_hermitian
 
-    # @property
-    # def square_fast(self):
-    #     return self._square_fast
+    @property
+    def is_mode(self):
+        return self._is_mode
 
     def collect(self):
         return self
@@ -91,31 +91,31 @@ class IS_Operator(AbstractObservable):
     def tree_flatten(self):
         children = (
             self.operator,
-            self.is_mode,
+            
             # self.epsilon,
             self.resample_fraction
             # self._operator_squared,
         )
         # aux_data = {"second_order": self.second_order, "square_fast": self.square_fast, "reweight_norm": self.reweight_norm}
         # aux_data = {"square_fast": self.square_fast}
-        aux_data = {}
+        aux_data = {'is_mode' : self.is_mode}
         return (children, aux_data)
 
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         # square_fast = aux_data.pop("square_fast")
-
+        is_mode = aux_data.pop('is_mode')
         # (operator, epsilon, resample_fraction, op_sq) = children
-        (operator, is_mode, resample_fraction) = children
+        (operator, resample_fraction) = children
+        
         res = cls(
             operator,
-            is_mode,
             # epsilon=epsilon,
             resample_fraction=resample_fraction,
-            **aux_data,
+            is_mode = is_mode
             # square_fast=True,
         )
-        # res._square_fast = square_fast
+        res._is_mode = is_mode
         # res._operator_squared = op_sq
         return res
 

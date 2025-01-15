@@ -39,6 +39,134 @@ def importance_factor_sq(logψ, logφ, varsψ, varsφ, σ, chunk_size):
     return nkjax.apply_chunked(_fun, in_axes=(0), chunk_size=chunk_size)(σ)
 
 
+def QGTJacobianDefaultConstructorIS(
+    apply_fun,
+    parameters,
+    model_state,
+    samples,
+    log_is_fun,
+    is_vars,
+    *,
+    importance_operator=None,
+    mode: Optional[str] = None,
+    holomorphic: Optional[bool] = None,
+    diag_shift=0.0,
+    diag_scale=None,
+    chunk_size=None,
+    **kwargs,
+) -> "QGTJacobianDenseT":
+    r"""Semi-lazy representation of an S Matrix where the Jacobian O_k is precomputed
+    and stored as a dense matrix.
+
+    The matrix of gradients O is computed on initialisation, but not S,
+    which can be computed by calling :code:`to_dense`.
+    The details on how the ⟨S⟩⁻¹⟨F⟩ system is solved are contained in
+    the field `sr`.
+
+    Numerical estimates of the QGT are usually ill-conditioned and require
+    regularisation. The standard approach is to add a positive constant to the diagonal;
+    alternatively, Becca and Sorella (2017) propose scaling this offset with the
+    diagonal entry itself. NetKet allows using both in tandem:
+
+    .. math::
+
+        S_{ii} \\mapsto S_{ii} + \\epsilon_1 S_{ii} + \\epsilon_2;
+
+    :math:`\\epsilon_{1,2}` are specified using `diag_scale` and `diag_shift`,
+    respectively.
+
+    Args:
+        vstate: The variational state
+        mode: "real", "complex" or "holomorphic": specifies the implementation
+              used to compute the jacobian. "real" discards the imaginary part
+              of the output of the model. "complex" splits the real and imaginary
+              part of the parameters and output. It works also for non holomorphic
+              models. holomorphic works for any function assuming it's holomorphic
+              or real valued.
+        holomorphic: a flag to indicate that the function is holomorphic.
+        diag_scale: Fractional shift :math:`\\epsilon_1` added to diagonal entries (see above).
+        diag_shift: Constant shift :math:`\\epsilon_2` added to diagonal entries (see above).
+        chunk_size: If supplied, overrides the chunk size of the variational state
+                    (useful for models where the backward pass requires more
+                    memory than the forward pass).
+
+    """
+    if mode is not None and holomorphic is not None:
+        raise ValueError("Cannot specify both `mode` and `holomorphic`.")
+
+    if importance_operator is None:
+        raise ValueError("Must specify the importance_operator")
+    
+    if mode is None:
+        mode = nkjax.jacobian_default_mode(
+            apply_fun,
+            parameters,
+            model_state,
+            samples,
+            holomorphic=holomorphic,
+        )
+
+    if samples.ndim >= 3:
+        # use jit so that we can do it on global shared array
+        samples = jax.jit(jax.lax.collapse, static_argnums=(1, 2))(samples, 0, 2)
+    sqrt_n_samp = jnp.sqrt(samples.shape[0] * mpi.n_nodes)  # maintain weak type
+
+    """
+    J_ψ_η = nkjax.jacobian(
+        vstate._apply_fun,
+        vstate.parameters,
+        samples_ψ,
+        vstate.model_state,
+        mode=mode,
+        pdf=None,
+        chunk_size=chunk_size,
+        dense=True,
+        center=False,
+        _sqrt_rescale=False,
+    )
+    """
+
+    jac_dense = nkjax.jacobian(
+        apply_fun,
+        parameters,
+        samples,
+        model_state,
+        mode=mode,
+        chunk_size=chunk_size,
+        dense=True,
+        center=False,
+        _sqrt_rescale=False,
+    )
+    op = importance_operator.operator
+    log_psi_sigma = nkjax.apply_chunked(lambda x: apply_fun({"params":parameters}, x), chunk_size=chunk_size)(samples)
+
+    log_Hpsi_sigma = nkjax.apply_chunked(lambda x: log_is_fun(is_vars, x), chunk_size=chunk_size)(samples)
+    w_is_sigma = jnp.abs(jnp.exp(log_psi_sigma - log_Hpsi_sigma))**2
+    Z_ratio = 1/jnp.mean(w_is_sigma)
+
+    jacobians = jnp.sqrt(Z_ratio*w_is_sigma)[:,None]/sqrt_n_samp * (jac_dense - Z_ratio*jnp.mean(w_is_sigma[:,None]*jac_dense, axis=0))
+
+    shift, offset = to_shift_offset(diag_shift, diag_scale)
+
+    if offset is not None:
+        ndims = 1 if mode != "complex" else 2
+        jacobians, scale = rescale(jacobians, offset, ndims=ndims)
+    else:
+        scale = None
+
+    pars_struct = jax.tree_util.tree_map(
+        lambda x: jax.ShapeDtypeStruct(x.shape, x.dtype), parameters
+    )
+
+    return QGTJacobianDenseT(
+        O=jacobians,
+        scale=scale,
+        mode=mode,
+        _params_structure=pars_struct,
+        diag_shift=shift,
+        **kwargs,
+    )
+
 def QGTJacobianDenseImportanceSampling(
     vstate=None,
     *,

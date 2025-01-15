@@ -51,16 +51,18 @@ def e_diag(H_sp):
     E_gs = eig_vals[0]  # "SA" selects the ones with smallest absolute value
     return E_gs
 
-def find_closest_saved_vals(E_err, saved_vals, save_every):
+def find_closest_saved_vals(E_err, saved_vals, save_every, n_vals_per_scale=1):
     L = len(E_err)
     exp_max = int(jnp.log10(jnp.max(E_err))) +1
     exp_min = int(jnp.log10(jnp.min(E_err))) -1
     exp_list = jnp.flip(jnp.arange(exp_min, exp_max))
-    
+    print((exp_max - exp_min)*n_vals_per_scale)
+    exp_list = jnp.flip(jnp.linspace(exp_min, exp_max, (exp_max - exp_min +1)*n_vals_per_scale))
+    print(exp_list)
     target_values = 10.0 ** (exp_list)  # 10^n values
     print(target_values)
     closest_saved_vals = []
-
+    error_val = []
     for target in target_values:
         # Find the index in E_err with the value closest to the target
         closest_index = jnp.abs(E_err - target).argmin()
@@ -69,8 +71,8 @@ def find_closest_saved_vals(E_err, saved_vals, save_every):
         # `saved_vals` is of length L//10 and corresponds to every 10th iteration
         saved_index = closest_index // save_every
         saved_index = min(saved_index, len(saved_vals) - 1)  # Ensure index is within bounds
-
-        closest_saved_vals.append(saved_vals[saved_index])
-
-    return closest_saved_vals
+        if saved_vals[saved_index] not in closest_saved_vals:
+            closest_saved_vals.append(saved_vals[saved_index])
+            error_val.append(E_err[saved_index*save_every])
+    return closest_saved_vals, error_val
 
