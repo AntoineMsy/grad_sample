@@ -6,4 +6,4 @@ L_eff: 4
 b: 2
 expansion_factor: 4
 transl_invariant: True
-two_dimensional: True
+two_dimensional: False

@@ -21,6 +21,7 @@ class Trainer(Problem):
         # Save the current config to the custom path
         with open(os.path.join(self.output_dir, "config.yaml"), "w") as f:
             f.write(OmegaConf.to_yaml(self.cfg))
+
         if self.is_mode != None:
             self.gs = nk.VMC(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         else:
