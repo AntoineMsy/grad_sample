@@ -19,7 +19,7 @@ from netket_pro.utils import make_logpsi_U_afun, make_logpsi_sum_afun
 from .operator import IS_Operator
 
 from grad_sample.is_hpsi.is_utils import _prepare_H
-
+from grad_sample.utils.tree_op import dagger_pytree, vjp_pytree, mul_pytree, shape_tree
 from jax.tree_util import tree_map
 
 from netket.stats import subtract_mean
@@ -159,15 +159,7 @@ def expect_grad_is(
 
     else:
         jac_mode  = operator.mode
-        def dagger_pytree(jac_pytree):
-            return tree_map(lambda x: x.conj().T, jac_pytree)
 
-        def vjp_pytree(jac_pytree, vector):
-            return tree_map(lambda jac_block: jnp.einsum("...i,i->...", jac_block, vector), jac_pytree)
-        
-        def mul_pytree(jac_pytree, vector):
-            return tree_map(lambda jac_block: jac_block*vector, jac_pytree)
-        
         # compute actual jacobian instead of vjp
         jacobian_pytree = nkjax.jacobian(
             lambda w, sigma: log_psi(w, sigma),
@@ -209,8 +201,10 @@ def expect_grad_is(
         # op_grad, _ = mpi.mpi_sum_jax(op_grad)
         # print(op_grad)
         # return op_mean, op_grad['params'],
-            
 
+# def compute_Eloc_is():
+
+# def compute_local_force_is(samples, log_psi, params, model_state, mode):
 # def jacknife(a, axis=1):
 #     #compute variance using the jackknife method, for an array of values a, where the sample axis is given by axis
 #     def remove_one_mean(i, arr):
