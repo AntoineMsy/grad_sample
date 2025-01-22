@@ -4,8 +4,9 @@ import jax.numpy as jnp
 def shape_tree(pytree):
     return jax.tree_util.tree_map(lambda g: g.shape, pytree)
 
-def snr_tree(pytree):
-    return jax.tree_util.tree_map(lambda g: jnp.sqrt(g.size*jnp.abs(jnp.mean(g, axis=0))**2/(jnp.var(g, axis=0))), pytree)
+def snr_tree(pytree, pytree_fs):
+    #centered on the full summation value
+    return jax.tree_util.tree_map(lambda g, g_fs: jnp.sqrt(g.shape[0]*jnp.abs(g_fs)**2/(jnp.var(g, axis=0))), pytree, pytree_fs)
 
 def flatten_tree_to_array(tree):
     """

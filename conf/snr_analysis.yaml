@@ -4,16 +4,16 @@ defaults:
   - ansatz: rbm
   - task: analysis_is
 
-device: "5"
-is_mode : 2.0
+device: "4"
+is_mode : null
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
 lr : 0.0022
-diag_shift : schedule
+diag_shift : 1e-6
 n_iter : 6000
-sample_size : 9
-chunk_size_jac: 1024
+sample_size : 0
+chunk_size_jac: 512
 chunk_size_vmap : 100
 save_every : 10
 run_index : 0

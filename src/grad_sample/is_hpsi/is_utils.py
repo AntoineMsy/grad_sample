@@ -16,7 +16,7 @@ def _prepare_H(log_psi, log_psi_variables, op):
     # )
 
     return log_Hpsi, log_Hpsi_variables
-
+    
 def make_logpsi_smeared_afun(
     logpsi_fun, variables, alpha
 ):

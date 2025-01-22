@@ -11,24 +11,20 @@ from grad_sample.is_hpsi.is_utils import _prepare_H, make_logpsi_smeared_afun
 @register_pytree_node_class
 class IS_Operator(AbstractObservable):
     """ """
-
     def __init__(
         self,
         operator: DiscreteJaxOperator,
-        is_mode,
+        is_mode: float,
+        mode = 'holomorphic',
         *,
-        # second_order: bool = True,
-        # square_fast: bool = False,
         resample_fraction: Optional[int] = None,
-        # reweight_norm: bool = True,
     ):
         """
 
         Args:
             operator: The operator to estimate with importance sampling
-            epsilon: The :math:`shift` used to sample
-            second_order: Whether to keep second order terms in epsilon.
-                False by default
+            is_mode: the probability distribution to use for IS, -1.0 being Hpsi, beetween 0 and 2 being smearing
+            mode: how to compute the jacobians ; either holomorphic or real
             resample_fraction: Resample only a fraction of samples. None or
                 1 to disable. 0 to never resample after the first iteration.
         """
@@ -40,34 +36,14 @@ class IS_Operator(AbstractObservable):
 
         super().__init__(operator.hilbert)
         self._bare_operator = operator
-        # self._epsilon = epsilon
-        # self._second_order = second_order
+
         self._resample_fraction = resample_fraction
         self._is_mode = is_mode
-        # self._reweight_norm = reweight_norm
 
-        # self._square_fast = square_fast
-        # if square_fast:
-        #     self._operator_squared = None
-        # else:
-        # op_sq = operator.H @ operator
-        # if not isinstance(op_sq, DiscreteJaxOperator):
-        #     op_sq = op_sq.to_jax_operator()
-        # self._operator_squared = op_sq
-
-    """
-    @property
-    def reweight_norm(self):
-        return self._reweight_norm
-
-    @property
-    def second_order(self):
-        return self._second_order
-    """
-
-    # @property
-    # def epsilon(self):
-    #     return self._epsilon
+        if mode not in ['holomorphic', 'real']:
+            raise ValueError('Invalid jacobian mode specified. Must be either real or holomorphic')
+        
+        self._mode = mode
 
     @property
     def operator(self):
@@ -84,6 +60,10 @@ class IS_Operator(AbstractObservable):
     @property
     def is_mode(self):
         return self._is_mode
+    
+    @property
+    def mode(self):
+        return self._mode
 
     def collect(self):
         return self
@@ -91,32 +71,26 @@ class IS_Operator(AbstractObservable):
     def tree_flatten(self):
         children = (
             self.operator,
-            
-            # self.epsilon,
             self.resample_fraction
-            # self._operator_squared,
         )
-        # aux_data = {"second_order": self.second_order, "square_fast": self.square_fast, "reweight_norm": self.reweight_norm}
-        # aux_data = {"square_fast": self.square_fast}
-        aux_data = {'is_mode' : self.is_mode}
+        aux_data = {'is_mode' : self.is_mode, 'mode': self.mode}
         return (children, aux_data)
 
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         # square_fast = aux_data.pop("square_fast")
         is_mode = aux_data.pop('is_mode')
-        # (operator, epsilon, resample_fraction, op_sq) = children
+        mode = aux_data.pop('mode')
         (operator, resample_fraction) = children
         
         res = cls(
             operator,
-            # epsilon=epsilon,
             resample_fraction=resample_fraction,
-            is_mode = is_mode
-            # square_fast=True,
+            is_mode = is_mode,
+            mode=mode
         )
         res._is_mode = is_mode
-        # res._operator_squared = op_sq
+        res._mode = mode
         return res
 
     def get_log_importance(self, vstate):
@@ -125,4 +99,4 @@ class IS_Operator(AbstractObservable):
         elif type(self.is_mode) == float:
             return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.is_mode)
         else:
-            print("invalide mode specified")
+            print("invalide IS mode specified")

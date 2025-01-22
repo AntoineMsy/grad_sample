@@ -269,7 +269,6 @@ def QGTJacobianDenseImportanceSampling(
         _sqrt_rescale=False,
     )
     """
-
     jac_dense = nkjax.jacobian(
         vstate._apply_fun,
         vstate.parameters,

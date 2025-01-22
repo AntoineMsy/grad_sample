@@ -114,8 +114,6 @@ def expect_and_forces_is(
     # )
 
     
-
-
 @partial(jax.jit, static_argnames=("log_psi", "log_Hpsi", "return_grad", "chunk_size"))
 def expect_grad_is(
     log_psi, parameters, log_Hpsi, Hpsi_vars, model_state, operator, sigma, return_grad, chunk_size
@@ -124,7 +122,7 @@ def expect_grad_is(
     parameters = {"params": parameters}
     sigma = sigma.reshape(sigma.shape[0]*sigma.shape[1], -1)
 
-    n_samples = sigma.size
+    n_samples = sigma.shape[0]
     # Compute standard Expectation value
     log_psi_sigma = nkjax.apply_chunked(lambda x: log_psi(parameters, x), chunk_size=chunk_size)(sigma)
 
@@ -160,6 +158,7 @@ def expect_grad_is(
         return nkstats.statistics(op_loc)
 
     else:
+        jac_mode  = operator.mode
         def dagger_pytree(jac_pytree):
             return tree_map(lambda x: x.conj().T, jac_pytree)
 
@@ -175,7 +174,7 @@ def expect_grad_is(
             parameters["params"],
             sigma,
             model_state,
-            mode = "holomorphic",
+            mode = jac_mode,
             chunk_size=chunk_size,
             dense=False
         )
@@ -194,7 +193,7 @@ def expect_grad_is(
         grad_pytree = vjp_pytree(dagger_pytree(jacobians), op_loc_c)
 
         # Final gradient (normalize by sample size)
-        grad = tree_map(lambda g: Z_ratio * g.T / log_psi_sigma.size, grad_pytree)
+        grad = tree_map(lambda g: Z_ratio * g.T / log_psi_sigma.shape[0], grad_pytree)
         
         return nkstats.statistics(w_is_sigma*op_loc*Z_ratio), grad
         # op_loc = jnp.sum(etap_mels * jnp.exp(log_psi_eta - jnp.expand_dims(log_psi_sigma,-1)), axis=-1)
@@ -286,6 +285,8 @@ def get_snr(
         return nkstats.statistics(op_loc)
 
     else:
+        jac_mode = O.mode
+
         def dagger_pytree(jac_pytree):
             return tree_map(lambda x: x.conj().T, jac_pytree)
 
@@ -301,10 +302,11 @@ def get_snr(
             parameters["params"],
             sigma,
             model_state,
-            mode = "holomorphic",
+            mode = jac_mode,
             chunk_size=chunk_size,
             dense=False
         )
+
         @partial(jax.jit, static_argnames=("i"))
         def jackknife_remove_mean(i: int, jacobian_pytree, w_is_sigma, op_loc, axis=1):
             w_is_del = jnp.delete(w_is_sigma, i)

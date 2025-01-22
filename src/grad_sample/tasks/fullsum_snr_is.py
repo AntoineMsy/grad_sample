@@ -11,7 +11,7 @@ import jax
 from tqdm import tqdm
 from grad_sample.tasks.base import Problem
 from grad_sample.utils.utils import cumsum, find_closest_saved_vals
-from grad_sample.utils.distances import fs_dist
+from grad_sample.utils.distances import fs_dist, dot_prod
 
 import json
 from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling, QGTJacobianDefaultConstructorIS
@@ -53,7 +53,7 @@ class FullSumIS(Problem):
         self.sr_fs = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
 
         self.num_resample = 1000
-        self.chunk_size_resample = 200
+        self.chunk_size_resample = 50
 
         self.model.H_jax._setup()
 
@@ -84,10 +84,12 @@ class FullSumIS(Problem):
 
                 self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=alpha)
                 vmc_fs = nk.VMC(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate_fs, preconditioner=self.sr_fs)
-                fs_ng = vmc_fs._forward_and_backward()
-                fs_ng_leaves, _ = jax.tree_util.tree_flatten(fs_ng)
+                e_fs, fs_grad = self.vstate_fs.expect_and_grad(self.model.H_jax)
+                fs_ng_t = vmc_fs._forward_and_backward()
+                fs_ng_leaves, _ = jax.tree_util.tree_flatten(fs_ng_t)
                 fs_ng = jnp.concatenate([leaf.flatten() for leaf in fs_ng_leaves])
                 log_q, log_q_vars = self.is_op.get_log_importance(self.vstate)
+
                 if self.diag_exp == 'schedule':
                     diag_shift = self.diag_shift(state_idx*self.save_every)
                 else: 
@@ -102,12 +104,13 @@ class FullSumIS(Problem):
                 batch_sample = samples.reshape((self.num_resample, 1, self.Nsample, -1))
                 e, grad_e , ng = self.compute_S_F(batch_sample)
                 ng_dense = flatten_tree_to_array(ng)
-                fs_dist_l.append(jax.vmap(lambda x : fs_dist(fs_ng, x), in_axes=0)(ng_dense))
+                print(fs_ng_t.keys())
+                fs_dist_l.append(jax.vmap(lambda x : dot_prod(fs_ng, x), in_axes=0)(ng_dense))
                 alpha_out['snr_e'].append(jnp.sqrt(e.size*jnp.abs(jnp.mean(e))**2/(jnp.var(e))))
                 alpha_out['mean_e'].append(jnp.mean(e))
                 alpha_out['var_e'].append(jnp.var(e))
-                snr_grad_l.append(snr_tree(grad_e))
-                snr_ng_l.append(snr_tree(ng))
+                snr_grad_l.append(snr_tree(grad_e, fs_grad))
+                snr_ng_l.append(snr_tree(ng[0], fs_ng_t))
     
             # stack snr and save 
             alpha_out['snr_ng'] = jax.tree_util.tree_map(lambda *arrays: jnp.stack(arrays, axis=0), *snr_ng_l)

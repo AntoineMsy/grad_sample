@@ -77,4 +77,25 @@ class XXZ:
         self.H_jax = self.H.to_jax_operator()
 
         self.H_sp = self.H.to_sparse()
+
+class XXZ2d:
+    def __init__(self, L=4, h=1.5):
+        self.name = "xxz"
+        self.Ns = L
+        self.L = L
+        self.h = h
+        
+        self.lattice = nk.graph.Square(L, pbc=True)
+        
+        self.hi = nk.hilbert.Spin(s=1/2, N=self.lattice.n_nodes, total_sz=0, inverted_ordering=False)
+        
+        self.H = 0
+        for (i,j) in self.lattice.edges:
+            self.H += nk.operator.spin.sigmax(self.hi,i)*nk.operator.spin.sigmax(self.hi,j) + nk.operator.spin.sigmay(self.hi,i)*nk.operator.spin.sigmay(self.hi,j) + self.h*(nk.operator.spin.sigmaz(self.hi,i)*nk.operator.spin.sigmaz(self.hi,j))
+        # op = nk.operator.GraphOperator(self.hi, graph=self.lattice, bond_ops=bond_operator)
+        # self.H = nk.operator.Heisenberg(hilbert=self.hi, graph=self.lattice, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
+        
+        self.H_jax = self.H.to_jax_operator()
+
+        self.H_sp = self.H.to_sparse()
         

@@ -9,6 +9,7 @@ from jax.nn.initializers import he_normal
 from jax.nn import relu
 from flax.linen.linear import PrecisionLike
 import jax
+import netket as nk
 
 def get_scale(fn, out_features, dtype, N):
     x = normal(PRNGKey(0), (1000, out_features), dtype=dtype)
@@ -35,7 +36,7 @@ def final_actfn(x):
 
 class ConvReLU(nn.Module):
     depth: int
-    features: int
+    features: Sequence
     kernel_size: Sequence
     graph: Any
     final_actfn: Callable
@@ -48,7 +49,7 @@ class ConvReLU(nn.Module):
         self.lattice_shape = self.graph.extent
         dtype = self.dtype
         size = np.prod(self.lattice_shape[:-1])
-        out_features = size * self.features
+        out_features = size * self.features[-1]
         self.scale = get_scale(
             self.final_actfn, out_features, dtype, self.graph.n_nodes
         )
@@ -58,8 +59,9 @@ class ConvReLU(nn.Module):
         for i in range(self.depth):
             layers.append(
                 nn.Conv(
-                    features=self.features,
+                    features=self.features[i],
                     kernel_size=self.kernel_size,
+                    strides=1,
                     padding="CIRCULAR",
                     dtype=dtype,
                     param_dtype=dtype,
@@ -71,6 +73,14 @@ class ConvReLU(nn.Module):
 
         self.layers = layers
         self.layernorm = nn.LayerNorm(dtype=dtype, use_bias=False, use_scale=False)
+        self.dense_out = nn.Dense(
+            name="Dense",
+            features=2,
+            param_dtype=dtype,
+            precision=self.precision,
+            use_bias=True,
+            kernel_init=he_normal(dtype=dtype)
+        )
 
     def __call__(self, x):
         x = x.reshape(x.shape[0], *self.lattice_shape)
@@ -87,11 +97,15 @@ class ConvReLU(nn.Module):
             # print(f"x shape before layer {x.shape}")
             x = layer(x)  # input should have shape(batch, spatial_dims,features)
             # print(f"x shape after layer {x.shape}")
-            if i % 2:
-                x += residual
-                residual = x.copy()
+            # if i % 2:
+            #     x += residual
+            #     residual = x.copy()
 
         x *= self.scale / jnp.sqrt(len(self.layers) // 2)
-        complex_out = jnp.prod(self.final_actfn(x), axis=(-1, -2, -3)).astype(complex)
+        x = jnp.reshape(x, (-1, x.shape[-1]*x.shape[-2]))
+        x_out = self.dense_out(x)
+
+        return nk.nn.log_cosh(x_out[:,0] + 1j * x_out[:,1])
+        # complex_out = jnp.prod(self.final_actfn(x), axis=(-1, -2, -3)).astype(complex)
         # print(f"complex_out shape {complex_out.shape}")
         return jnp.log(complex_out)

@@ -32,6 +32,7 @@ class Problem:
         print(self.cfg.ansatz)
         sym_group = self.model.lattice.translation_group()
         self.mode = "holomorphic"
+
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hi)
             self.alpha = 0
@@ -47,7 +48,7 @@ class Problem:
         elif "cnn" in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, graph=self.model.lattice, final_actfn=final_actfn)
             self.alpha = self.cfg.ansatz.depth
-            self.mode = "complex" 
+            self.mode = "real" 
 
         elif "ViT" in self.cfg.ansatz._target_:
             if self.cfg.ansatz.two_dimensional:
@@ -60,9 +61,14 @@ class Problem:
         elif 'MLP' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, hidden_activations=[nk.nn.log_cosh]*len(self.cfg.ansatz.hidden_dims_alpha))
             self.alpha = self.ansatz.hidden_dims_alpha[0]
-        else:
+        elif 'RBM' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz)
             self.alpha = self.ansatz.alpha
+            if self.cfg.ansatz.param_dtype == 'complex':
+                self.mode = 'holomorphic'
+            else :
+                self.mode = 'real'
+            
 
         dict_name = {"netket.models.RBM": "RBM",
         'netket.models.RBMSymm': 'RBMSymm',             
@@ -90,7 +96,7 @@ class Problem:
         self.is_mode = self.cfg.get("is_mode")
         
         if self.diag_shift == 'schedule':
-            start_diag_shift, end_diag_shift = 1e-2, 1e-8
+            start_diag_shift, end_diag_shift = 1e-3, 1e-8
 
             # Define a linear schedule for diag_shift using optax
             self.diag_shift = optax.linear_schedule(
@@ -120,8 +126,8 @@ class Problem:
         self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
 
         if self.is_mode != None:
-            self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=self.is_mode)
-            self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac), solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
+            self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=self.is_mode, mode = self.mode)
+            self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=self.diag_shift)
         else:
             
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
