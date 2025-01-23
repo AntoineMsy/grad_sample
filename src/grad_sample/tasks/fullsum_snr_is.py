@@ -170,3 +170,41 @@ def _compute_S_F(samples, log_psi, parameters, model_state, log_q, log_q_vars, c
     
     ng = solver_fn(S, O_grad)
     return O_exp.mean.real, O_grad, ng
+
+def _compute_S_F_var(samples, log_psi, parameters, model_state, log_q, log_q_vars, chunk_size, O, solver_fn, diag_shift):
+    # sample and return estimators for S, F, NG, and energy
+    # force call sample distribution to reset the batch of samples even though there may be cached ones (by calling sample_distribution instead of samples_distribution)
+
+    # Hpsi_samples = vstate.samples_distribution(
+    #     apply_fun, variables=variables, resample_fraction=O.resample_fraction
+    # )
+
+
+    O_exp, O_grad, var, grad_var = expect_grad_var_is(
+        log_psi,
+        parameters,
+        log_q,
+        log_q_vars,
+        model_state,
+        O,
+        samples,
+        return_grad=True,
+        chunk_size=chunk_size,
+    )
+
+    O_grad = force_to_grad(O_grad, parameters)
+    # ng = O_grad
+    S = QGTJacobianDefaultConstructorIS(log_psi,
+        parameters,
+        model_state,
+        samples,
+        log_q,
+        log_q_vars,
+        importance_operator = O,
+        holomorphic=True,
+        chunk_size=chunk_size,
+        diag_shift= diag_shift)
+    
+    ng = solver_fn(S, O_grad)
+    return O_exp.mean.real, O_grad, ng, var, grad_var
+    
