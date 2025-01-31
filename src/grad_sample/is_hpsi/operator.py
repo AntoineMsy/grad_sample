@@ -71,17 +71,18 @@ class IS_Operator(AbstractObservable):
     def tree_flatten(self):
         children = (
             self.operator,
-            self.resample_fraction
+            self.resample_fraction,
+            self._is_mode
         )
-        aux_data = {'is_mode' : self.is_mode, 'mode': self.mode}
+        aux_data = {'mode': self.mode}
         return (children, aux_data)
 
     @classmethod
     def tree_unflatten(cls, aux_data, children):
         # square_fast = aux_data.pop("square_fast")
-        is_mode = aux_data.pop('is_mode')
+        # is_mode = aux_data.pop('is_mode')
         mode = aux_data.pop('mode')
-        (operator, resample_fraction) = children
+        (operator, resample_fraction, is_mode) = children
         
         res = cls(
             operator,
@@ -89,14 +90,12 @@ class IS_Operator(AbstractObservable):
             is_mode = is_mode,
             mode=mode
         )
-        res._is_mode = is_mode
-        res._mode = mode
         return res
 
     def get_log_importance(self, vstate):
-        if self.is_mode == -1: #-1 stands for hpsi
-            return _prepare_H(vstate._apply_fun, vstate.variables, self)
-        elif isinstance(self.is_mode, float) or jnp.issubdtype(self.is_mode.dtype, jnp.floating):
-            return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.is_mode)
-        else:
-            print("invalide IS mode specified")
+        # if self.is_mode == -1: #-1 stands for hpsi
+        #     return _prepare_H(vstate._apply_fun, vstate.variables, self)
+        # elif isinstance(self.is_mode, float) or jnp.issubdtype(self.is_mode.dtype, jnp.floating):
+        return make_logpsi_smeared_afun(vstate._apply_fun, vstate.variables, self.is_mode)
+        # else:
+        #     print("invalide IS mode specified")

@@ -9,8 +9,7 @@ import jax.numpy as jnp
 import jax
 from grad_sample.utils.utils import save_cb, e_diag
 # from grad_sample.utils.plotting_setup import *
-from grad_sample.ansatz.cnn import final_actfn
-from deepnets.net.patches import extract_patches2d, extract_patches1dbis, extract_patches_as1d
+from deepnets.net.patches import extract_patches2d
 
 from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
 from grad_sample.is_hpsi.operator import IS_Operator
@@ -46,15 +45,15 @@ class Problem:
             self.alpha = self.cfg.ansatz.layers
 
         elif "cnn" in self.cfg.ansatz._target_:
-            self.ansatz = instantiate(self.cfg.ansatz, graph=self.model.lattice, final_actfn=final_actfn)
-            self.alpha = self.cfg.ansatz.depth
-            self.mode = "real" 
+            self.ansatz = instantiate(self.cfg.ansatz, lattice=self.model.lattice)
+            self.alpha = len(self.cfg.ansatz.channels)
+            self.mode = "complex" 
 
         elif "ViT" in self.cfg.ansatz._target_:
             if self.cfg.ansatz.two_dimensional:
-                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches_as1d)
+                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches2d)
             else:
-                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches1dbis)
+                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches1d)
             self.alpha = self.cfg.ansatz.d_model
             self.mode = "real"
 
@@ -74,7 +73,7 @@ class Problem:
         'netket.models.RBMSymm': 'RBMSymm',             
         "netket.models.LogStateVector": "log_state",
          "netket.experimental.models.LSTMNet": "RNN",
-         "grad_sample.ansatz.cnn.ConvReLU": "CNN",
+         "grad_sample.ansatz.cnn.CNN": "CNN",
          "deepnets.net.ViT.net.ViT_Vanilla": "ViT",
          'netket.models.MLP': 'MLP'}
          
@@ -118,7 +117,11 @@ class Problem:
         else:
             self.Nsample = 2**self.sample_size
             self.chunk_size = self.chunk_size_jac
-            self.sampler = nk.sampler.ExactSampler(hilbert= self.model.hi)
+            try:
+                print(self.model.hi.n_states)
+                self.sampler = nk.sampler.ExactSampler(hilbert= self.model.hi)
+            except:
+                self.sampler = nk.sampler.MetropolisExchange(hilbert=self.model.hi, graph=self.model.lattice, sweep_size=self.model.lattice.n_nodes,d_max=1)
             self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample, seed=0)
             print("MC state loaded, num samples %d"%self.Nsample)
 
@@ -129,7 +132,6 @@ class Problem:
             self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=self.is_mode, mode = self.mode)
             self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=self.diag_shift)
         else:
-            
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
             self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
@@ -167,10 +169,13 @@ class Problem:
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
+        if self.model.H_sp != None:
+            self.E_gs = e_diag(self.model.H_sp)
+            print("The ground state energy is:", self.E_gs)
+        else : 
+            print('Hilbert space too large for exact diag')
+            self.E_gs = None
 
-        self.E_gs = e_diag(self.model.H_sp)
-        print("The ground state energy is:", self.E_gs)
-        
         self.json_log = nk.logging.JsonLog(output_prefix=self.output_dir)
         if self.save_every != None:
             self.state_log = nk.logging.StateLog(output_prefix=self.state_dir, save_every=self.save_every)

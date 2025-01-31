@@ -1,9 +1,9 @@
 _target_ : deepnets.net.ViT.net.ViT_Vanilla
-num_layers: 4
-d_model: 8
-heads: 4
-L_eff: 4
+num_layers: 2
+d_model: 12
+heads: 6
+L_eff: 9
 b: 2
-expansion_factor: 4
-transl_invariant: True
-two_dimensional: False
+# expansion_factor: 2
+transl_invariant:  False
+two_dimensional: True

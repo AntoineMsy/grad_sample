@@ -85,6 +85,23 @@ class FullSumIS(Problem):
                 self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=alpha)
                 vmc_fs = nk.VMC(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate_fs, preconditioner=self.sr_fs)
                 e_fs, fs_grad = self.vstate_fs.expect_and_grad(self.model.H_jax)
+
+                # jac_fs =  nkjax.jacobian(
+                #         self.vstate_fs._apply_fun,
+                #         self.vstate_fs.parameters,
+                #         self.vstate_fs.hilbert.all_states(), #in MC state, this is vstate.samples
+                #         self.vstate_fs.model_state,
+                #         pdf=self.pdf,
+                #         mode=self.mode,
+                #         dense=False,
+                #         center=False,
+                #         chunk_size=10,
+                #         _sqrt_rescale=False, #(not) rescaled by sqrt[π(x)], but in MC this rescales by 1/sqrt[N_mc]
+                #     )
+                # pdf = self.vstate_fs.probability_distribution()
+                # mean_jac_fs = tree_map(lambda x: jnp.sum(x*pdf[:,None],axis=0), jac_fs)
+                # print(shape_tree(mean_jac_fs))
+
                 fs_ng_t = vmc_fs._forward_and_backward()
                 fs_ng_leaves, _ = jax.tree_util.tree_flatten(fs_ng_t)
                 fs_ng = jnp.concatenate([leaf.flatten() for leaf in fs_ng_leaves])
@@ -102,7 +119,7 @@ class FullSumIS(Problem):
                 )
 
                 batch_sample = samples.reshape((self.num_resample, 1, self.Nsample, -1))
-                e, grad_e , ng = self.compute_S_F(batch_sample)
+                e, grad_e , ng, force_e = self.compute_S_F(batch_sample)
                 ng_dense = flatten_tree_to_array(ng)
                 print(fs_ng_t.keys())
                 fs_dist_l.append(jax.vmap(lambda x : dot_prod(fs_ng, x), in_axes=0)(ng_dense))
@@ -135,15 +152,15 @@ def _compute_updated_state(model, parameters, all_states, delta, dp):
     psi_new = jnp.exp(log_psi_updated)
     return psi_new
 
-def _compute_S_F(samples, log_psi, parameters, model_state, log_q, log_q_vars, chunk_size, O, solver_fn, diag_shift):
+def _compute_S_F(samples, log_psi, parameters, model_state, log_q, log_q_vars, chunk_size, O, solver_fn, diag_shift, mean_h=None, mean_jac=None):
     # sample and return estimators for S, F, NG, and energy
     # force call sample distribution to reset the batch of samples even though there may be cached ones (by calling sample_distribution instead of samples_distribution)
 
     # Hpsi_samples = vstate.samples_distribution(
     #     apply_fun, variables=variables, resample_fraction=O.resample_fraction
     # )
-
-    O_exp, O_grad = expect_grad_is(
+    if mean_h != None and mean_jac != None:
+        O_exp, O_force = expect_grad_is_mean_exact(
         log_psi,
         parameters,
         log_q,
@@ -152,10 +169,24 @@ def _compute_S_F(samples, log_psi, parameters, model_state, log_q, log_q_vars, c
         O,
         samples,
         return_grad=True,
-        chunk_size=chunk_size
+        chunk_size=chunk_size,
+        mean_h=mean_h,
+        mean_jac=mean_jac
     )
+    else:
+        O_exp, O_force = expect_grad_is(
+            log_psi,
+            parameters,
+            log_q,
+            log_q_vars,
+            model_state,
+            O,
+            samples,
+            return_grad=True,
+            chunk_size=chunk_size
+        )
 
-    O_grad = force_to_grad(O_grad, parameters)
+    O_grad = force_to_grad(O_force, parameters)
     # ng = O_grad
     S = QGTJacobianDefaultConstructorIS(log_psi,
         parameters,

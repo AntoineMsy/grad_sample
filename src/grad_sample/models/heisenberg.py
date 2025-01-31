@@ -16,8 +16,10 @@ class Heisenberg2d:
         self.H = nk.operator.Heisenberg(hilbert=self.hi, graph=self.lattice, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
         
         self.H_jax = self.H.to_jax_operator()
-
-        self.H_sp = self.H.to_sparse()
+        try:
+            self.H_sp = self.H.to_sparse()
+        except:
+            self.H_sp = None
 
 class J1J2:
     def __init__(self, L=3, J=[1.0,0.5], sign_rule=[False,False], acting_on_subspace=0):

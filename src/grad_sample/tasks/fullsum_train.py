@@ -31,7 +31,7 @@ class Trainer(Problem):
         #     # try out vmc_ng driver to use auto diagshift callback
         #     self.gs = advd.driver.VMC_NG(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
         # else:
-        #     self.gs = advd.driver.VMC_NG(hamiltonian=self.model.H, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+        #     self.gs = advd.driver.VMC_NG(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
         
         self.plot_training_curve = True
         self.fs_state_rel_err = FullSumState(hilbert = self.gs.state.hilbert, model = self.gs.state.model, chunk_size=None, seed=0)
@@ -45,11 +45,13 @@ class Trainer(Problem):
             self.out_log = (self.json_log,)
 
     def __call__(self):
-        self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=(self.save_rel_err_cb,))
-
+        if self.E_gs != None:
+            self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=(self.save_rel_err_cb,))
+        else:
+            self.gs.run(n_iter=self.n_iter, out=self.out_log)
         # self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=(self.save_rel_err_cb, self.autodiagshift))
 
-        if self.plot_training_curve:
+        if self.plot_training_curve and self.E_gs != None:
             log_opt = self.output_dir + ".log"
             data = json.load(open(log_opt))
             E=  data["Energy"]["Mean"]["real"]
@@ -63,5 +65,18 @@ class Trainer(Problem):
             plt.xlabel("iteration")
             plt.ylabel("Relative error")
             plt.yscale("log")
-            plt.legend()
-            plt.savefig(self.output_dir + '/training.png')
+        
+        elif self.plot_training_curve:
+            log_opt = self.output_dir + ".log"
+            data = json.load(open(log_opt))
+            E=  data["Energy"]["Mean"]["real"]
+            plt.plot(jnp.abs(E), label= "MC Energy")
+            try :
+                plt.title(f"Energy during training, {self.Nsample} samples")
+            except: 
+                plt.title(f"Energy during training")
+            plt.xlabel("iteration")
+            plt.ylabel("Energy")
+            
+        plt.legend()
+        plt.savefig(self.output_dir + '/training.png')

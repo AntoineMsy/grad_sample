@@ -1,20 +1,20 @@
 defaults:
   - _self_
   - model: heisenberg2d
-  - ansatz: vit
+  - ansatz: cnn
   - task: train
 
-device: "4"
+device: "6"
 is_mode : null
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
 lr : 0.001
-diag_shift : 1.e-9
+diag_shift : 1.e-6
 n_iter : 6000
-sample_size : 12
+sample_size : 0
 chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : null
 run_index : null
-base_path : /scratch/.amisery/grad_sample_vit/
+base_path : /scratch/.amisery/grad_sample_cnn/

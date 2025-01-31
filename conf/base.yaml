@@ -9,7 +9,7 @@ is_mode : null
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
-lr : 0.003
+lr : 0.0022
 diag_shift : schedule
 n_iter : 6000
 sample_size : 9

@@ -1,5 +1,4 @@
-_target_ : grad_sample.ansatz.cnn.ConvReLU
-depth: 4
-features: [4, 8, 16, 32]
-kernel_size: 3
-dtype : float
+_target_ : grad_sample.ansatz.cnn.CNN
+channels: [ 8, 6, 4, 2]
+kernel_size: [3, 3,]
+# param_dtype: float
