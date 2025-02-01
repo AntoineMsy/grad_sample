@@ -1,0 +1,19 @@
+defaults:
+  - _self_
+  - model:  heisenberg2d
+  - ansatz: vit
+  - sampler: exact
+  - task: train
+  - solver_fn: cholesky
+
+device: null
+is_mode : null
+lr : 0.0022
+diag_shift : schedule
+n_iter : 6000
+sample_size : 10
+chunk_size_jac: 512
+chunk_size_vmap : 100
+save_every : 10
+run_index : 0
+base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample

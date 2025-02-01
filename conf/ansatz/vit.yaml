@@ -1,9 +1,7 @@
-_target_ : deepnets.net.ViT.net.ViT_Vanilla
-num_layers: 2
+_target_ : deepnets.net.ViT2D
+depth: 2
 d_model: 12
 heads: 6
-L_eff: 9
-b: 2
-# expansion_factor: 2
-transl_invariant:  False
-two_dimensional: True
+linear_patch_size: 2
+output_head_name: "Vanilla" #Vanilla/NoPatching
+expansion_factor: 1

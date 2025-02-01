@@ -12,9 +12,6 @@ from hydra.core.hydra_config import HydraConfig
 from hydra.utils import instantiate
 from omegaconf import DictConfig, OmegaConf, open_dict
 
-# from sde_sampler.utils import hydra as hydra_utils
-# from sde_sampler.utils.wandb import merge_wandb_cfg
-
 logging.basicConfig(level=logging.INFO)
 
 @hydra.main(version_base=None, config_path="../../conf", config_name="base")
@@ -34,8 +31,6 @@ def main(cfg: DictConfig):
     # if not cfg.get("out_dir"):
     #     cfg.out_dir = str(out_dir)
     # logging.info("Solver output path: %s", cfg.out_dir)
-
-    # Setup wandb
    
     OmegaConf.set_struct(cfg, True)
     

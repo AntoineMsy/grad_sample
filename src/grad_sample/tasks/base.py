@@ -19,7 +19,7 @@ from grad_sample.is_hpsi.expect import *
 class Problem:
     def __init__(self, cfg : DictConfig):
         self.cfg = deepcopy(cfg)
-
+        nk.config.netket_enable_x64 = True
         # self.device = self.cfg.get("device")
         # # set working device
         # os.environ["CUDA_VISIBLE_DEVICES"]= str(self.device)
@@ -29,11 +29,11 @@ class Problem:
         print(jax.devices())
         # Instantiate ansatz
         print(self.cfg.ansatz)
-        sym_group = self.model.lattice.translation_group()
+        sym_group = self.model.graph.translation_group()
         self.mode = "holomorphic"
 
         if "LogStateVector" in self.cfg.ansatz._target_:
-            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hi)
+            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hilbert_space)
             self.alpha = 0
 
         elif 'RBMSymm' in self.cfg.ansatz._target_:
@@ -41,25 +41,24 @@ class Problem:
             self.alpha = self.ansatz.alpha
 
         elif "LSTMNet" in self.cfg.ansatz._target_:
-            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hi)
+            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hilbert_space)
             self.alpha = self.cfg.ansatz.layers
 
         elif "cnn" in self.cfg.ansatz._target_:
-            self.ansatz = instantiate(self.cfg.ansatz, lattice=self.model.lattice)
+            self.ansatz = instantiate(self.cfg.ansatz, lattice=self.model.graph)
             self.alpha = len(self.cfg.ansatz.channels)
             self.mode = "complex" 
 
         elif "ViT" in self.cfg.ansatz._target_:
-            if self.cfg.ansatz.two_dimensional:
-                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches2d)
-            else:
-                self.ansatz = call(self.cfg.ansatz, extract_patches = extract_patches1d)
+            # only works with rajah's model in models/system !
+            self.ansatz = call(self.cfg.ansatz, system = self.model).network
             self.alpha = self.cfg.ansatz.d_model
-            self.mode = "real"
+            self.mode = "complex"
 
         elif 'MLP' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, hidden_activations=[nk.nn.log_cosh]*len(self.cfg.ansatz.hidden_dims_alpha))
             self.alpha = self.ansatz.hidden_dims_alpha[0]
+
         elif 'RBM' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz)
             self.alpha = self.ansatz.alpha
@@ -74,7 +73,7 @@ class Problem:
         "netket.models.LogStateVector": "log_state",
          "netket.experimental.models.LSTMNet": "RNN",
          "grad_sample.ansatz.cnn.CNN": "CNN",
-         "deepnets.net.ViT.net.ViT_Vanilla": "ViT",
+         "deepnets.net.ViT2D": "ViT",
          'netket.models.MLP': 'MLP'}
          
         self.ansatz_name = dict_name[self.cfg.ansatz._target_]
@@ -105,35 +104,41 @@ class Problem:
             )
         
         if self.sample_size == 0:
-            if self.chunk_size_jac < self.model.hi.n_states:
-                self.chunk_size = self.model.hi.n_states // (self.model.hi.n_states//self.chunk_size_jac)
+            if self.chunk_size_jac < self.model.hilbert_space.n_states:
+                self.chunk_size = self.model.hilbert_space.n_states // (self.model.hilbert_space.n_states//self.chunk_size_jac)
             else:
-                self.chunk_size = self.model.hi.n_states
+                self.chunk_size = self.model.hilbert_space.n_states
             self.chunk_size = None
             # print(self.model.hi.n_states // self.chunk_size)
             # print(self.chunk_size)
             # print(self.model.hi.n_states )
-            self.vstate = nk.vqs.FullSumState(hilbert=self.model.hi, model=self.ansatz, chunk_size=self.chunk_size, seed=0)
+            self.vstate = nk.vqs.FullSumState(hilbert=self.model.hilbert_space, model=self.ansatz, chunk_size=self.chunk_size, seed=0)
         else:
             self.Nsample = 2**self.sample_size
             self.chunk_size = self.chunk_size_jac
-            try:
-                print(self.model.hi.n_states)
-                self.sampler = nk.sampler.ExactSampler(hilbert= self.model.hi)
-            except:
-                self.sampler = nk.sampler.MetropolisExchange(hilbert=self.model.hi, graph=self.model.lattice, sweep_size=self.model.lattice.n_nodes,d_max=1)
+            if "Exact" in self.cfg.sampler._target_:
+                self.sampler = instantiate(self.cfg.sampler, hilbert= self.model.hilbert_space)
+            elif 'Exchange' in self.cfg.sampler._target_:
+                self.sampler = instantiate(self.cfg.sampler, hilbert=self.model.hilbert_space, 
+                                                             graph=self.model.graph, 
+                                                             sweep_size=self.model.graph.n_nodes, 
+                                                             n_chains_per_rank=self.Nsample // 2
+                                                             )
             self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample, seed=0)
             print("MC state loaded, num samples %d"%self.Nsample)
 
-        self.vstate.init_parameters()
-        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        if "LogStateVector" in self.cfg.ansatz._target_:
+            self.vstate.init_parameters()
 
+        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
+        
         if self.is_mode != None:
-            self.is_op = IS_Operator(operator = self.model.H_jax, is_mode=self.is_mode, mode = self.mode)
+            self.is_op = IS_Operator(operator = self.model.hamiltonian.to_jax_operator(), is_mode=self.is_mode, mode = self.mode)
             self.sr = nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=self.diag_shift)
         else:
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-            self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
+            self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
         # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
 
         if not self.is_mode == None:
@@ -142,15 +147,15 @@ class Problem:
             else:
                 self.is_name = self.is_mode
                 
-        if "heisenberg" in self.model.name or "J1J2" in self.model.name:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}_s{int(self.model.sign_rule)}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
+        if "Heisenberg" in self.model.name or "J1J2" in self.model.name:
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[0]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
         else:
             if self.sample_size == 0:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
             elif self.is_mode != None: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_name}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_name}/{self.lr}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.L}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
             
         # create dir if it doesn't already exist, if not in analysis mode
         self.run_index = self.cfg.get("run_index")
@@ -169,10 +174,10 @@ class Problem:
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
-        if self.model.H_sp != None:
-            self.E_gs = e_diag(self.model.H_sp)
+        try :
+            self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
             print("The ground state energy is:", self.E_gs)
-        else : 
+        except : 
             print('Hilbert space too large for exact diag')
             self.E_gs = None
 
