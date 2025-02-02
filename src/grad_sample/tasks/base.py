@@ -53,7 +53,7 @@ class Problem:
             # only works with rajah's model in models/system !
             self.ansatz = call(self.cfg.ansatz, system = self.model).network
             self.alpha = self.cfg.ansatz.d_model
-            self.mode = "complex"
+            self.mode = "real"
 
         elif 'MLP' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, hidden_activations=[nk.nn.log_cosh]*len(self.cfg.ansatz.hidden_dims_alpha))
