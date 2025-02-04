@@ -7,11 +7,11 @@ defaults:
   - sampler: exact
 
 device: "4"
-is_mode : 0.75
-lr : 0.002
+is_mode : 2.0
+lr : 0.0022
 diag_shift : schedule
-n_iter : 6000
-sample_size : 10
+n_iter : 2000
+sample_size : 9
 chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : null

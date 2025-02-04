@@ -3,5 +3,5 @@ depth: 2
 d_model: 12
 heads: 6
 linear_patch_size: 2
-output_head_name: "Vanilla" #Vanilla/NoPatching
+output_head_name: "RBMnoLayer" #Vanilla/NoPatching
 expansion_factor: 1

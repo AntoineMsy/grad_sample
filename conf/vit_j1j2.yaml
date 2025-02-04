@@ -1,20 +1,20 @@
 defaults:
   - _self_
-  - model: heisenberg2d
+  - model:  heisenberg2d
   - ansatz: vit
+  - sampler: exact
   - task: train
+  - solver_fn: cholesky
 
-device: "4"
+device: "5"
 is_mode : null
-solver_fn :
-  _target_: netket.optimizer.solver.cholesky
-  # _target_ : scipy.sparse.linalg.cg
 lr : 0.001
-diag_shift : 1.e-9
-n_iter : 6000
-sample_size : 12
-chunk_size_jac: 1024
+diag_shift : 1e-4
+n_iter : 1000
+sample_size : 10
+chunk_size_jac: 512
 chunk_size_vmap : 100
+use_symmetries : true
 save_every : null
 run_index : null
-base_path : /scratch/.amisery/grad_sample_vit/
+base_path : /scratch/.amisery/grad_sample_vit_replicas/
