@@ -55,7 +55,8 @@ class CNN(nn.Module):
                 x = logcosh_expanded_dv(x)
             else:
                 x = logcosh_expanded(x)
-        x = jnp.sum(x, axis=(1,2))/np.sqrt(ns)
+        
+        x = jnp.sum(x, axis=range(1, len(lattice_shape)+1))/np.sqrt(ns)
         x = nn.Dense(features=x.shape[-1], param_dtype=self.param_dtype, use_bias=False)(x)
         x = jnp.sum(x, axis=-1)/np.sqrt(x.shape[-1])
         return x

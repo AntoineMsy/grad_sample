@@ -1,4 +1,4 @@
 _target_ : grad_sample.ansatz.cnn.CNN
-channels: [ 8, 6, 4, 2]
-kernel_size: [3, 3,]
+channels: [16, 32]
+kernel_size: [3,]
 # param_dtype: float

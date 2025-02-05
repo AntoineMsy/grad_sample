@@ -41,15 +41,15 @@ class Trainer(Problem):
         with open(os.path.join(self.output_dir, "config.yaml"), "w") as f:
             f.write(OmegaConf.to_yaml(self.cfg))
 
-        if self.is_mode != None:
-            self.gs = nk.VMC(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
-        else:
-            self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        # if self.is_mode != None:
+        #     self.gs = nk.VMC(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        # else:
+        #     self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         
         if self.use_symmetries:
             self.n_symm_stages = len(self.model.symmetrizing_functions)
             self.lr_factor = 0.5
-            self.diag_shift_factor = 1e-4
+            self.diag_shift_factor = 1e-2
             self.lr_schedulers = [
                     optax.cosine_decay_schedule(
                         init_value=self.lr,
@@ -71,12 +71,14 @@ class Trainer(Problem):
                 # symmetrized networks
             self.nets = [f(self.ansatz) for f in self.model.symmetrizing_functions]
             # implementation of vmc such that the schedulers can be changed for each optimization stage
-        
-        if self.is_mode != None:
-            # try out vmc_ng driver to use auto diagshift callback
-            self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+        if self.sample_size !=0:
+            if self.is_mode != None:
+                # try out vmc_ng driver to use auto diagshift callback
+                self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+            else:
+                self.gs = advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
         else:
-            self.gs = advd.driver.VMC_NG(hamiltonian=self.model.H_jax, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+            self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         
         self.plot_training_curve = True
         self.fs_state_rel_err = FullSumState(hilbert = self.gs.state.hilbert, model = self.gs.state.model, chunk_size=None, seed=0)
@@ -130,12 +132,13 @@ class Trainer(Problem):
                     assert old_vars == self.vstate.variables
 
                 optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[i])
+                
                 driver = self.gs_func(
                     optimizer,
                     self.diag_shift_schedulers[i],
                     self.vstate,
                 )
-
+                
                 driver.run(
                     n_iter=self.n_iter,
                     out=self.out_log,

@@ -12,4 +12,4 @@ class TFI:
 
         self.hilbert_space = nk.hilbert.Spin(s=1 / 2, N=self.graph.n_nodes, inverted_ordering=False)
         
-        self.hamiltonian = nk.operator.Ising(hilbert=self.hi, graph=self.graph, h=self.h)
+        self.hamiltonian = nk.operator.Ising(hilbert=self.hilbert_space, graph=self.graph, h=self.h)

@@ -12,6 +12,7 @@ from grad_sample.utils.utils import save_cb, e_diag
 from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
 from grad_sample.is_hpsi.operator import IS_Operator
 from grad_sample.is_hpsi.expect import *
+import advanced_drivers as advd
 
 from typing import Sequence
 def to_sequence(arg):
@@ -146,12 +147,12 @@ class Problem:
         if self.is_mode != None:
             self.is_op = IS_Operator(operator = self.model.hamiltonian.to_jax_operator(), is_mode=self.is_mode, mode = self.mode)
             self.sr = lambda dshift : nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=dshift)
-            self.gs_func = lambda opt, vstate, dshift : nk.VMC(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, preconditioner=self.sr(dshift))
+            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift)
 
         else:
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-            self.sr = lambda dshift : nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, solver=self.solver_fn, diag_shift=dshift, holomorphic= self.mode == "holomorphic")
-            self.gs_func = lambda opt, dshift, vstate : nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, preconditioner=self.sr(dshift))
+            self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
+            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, diag_shift = dshift)
 
         # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
 

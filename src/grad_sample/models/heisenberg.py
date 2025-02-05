@@ -13,7 +13,7 @@ class Heisenberg2d:
         
         self.hilbert_space = nk.hilbert.Spin(s=1/2, N=self.graph.n_nodes, total_sz=0, inverted_ordering=False)
         
-        self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hi, graph=self.graph, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
+        self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hilbert_space, graph=self.graph, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
         
         # self.H_jax = self.H.to_jax_operator()
 
@@ -22,6 +22,7 @@ class J1J2:
         self.name = "J1J2"
         self.Ns = L*L
         self.L = L
+        self.J = J
         self.h = J[1]
         self.sign_rule = sign_rule[0]
         self.acting_on_subspace = acting_on_subspace
@@ -30,7 +31,7 @@ class J1J2:
         
         self.hilbert_space = nk.hilbert.Spin(s=1/2, N=self.graph.n_nodes, total_sz=0, inverted_ordering=False)
         
-        self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hi, graph=self.graph, J=J, sign_rule=sign_rule, acting_on_subspace=self.acting_on_subspace)
+        self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hilbert_space, graph=self.graph, J=J, sign_rule=sign_rule, acting_on_subspace=self.acting_on_subspace)
 
 class Heisenberg1d:
     def __init__(self, L=3, J=1.0, sign_rule=False, acting_on_subspace=0):

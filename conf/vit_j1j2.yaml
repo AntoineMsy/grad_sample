@@ -6,10 +6,10 @@ defaults:
   - task: train
   - solver_fn: cholesky
 
-device: "5"
-is_mode : null
+device: "3"
+is_mode : 1.5
 lr : 0.001
-diag_shift : 1e-4
+diag_shift : 1e-3
 n_iter : 1000
 sample_size : 10
 chunk_size_jac: 512

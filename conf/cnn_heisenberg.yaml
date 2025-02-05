@@ -1,8 +1,10 @@
 defaults:
   - _self_
-  - model: heisenberg2d
+  - model: xxz
   - ansatz: cnn
   - task: train
+  - solver_fn: cholesky
+  - sampler: exact
 
 device: "6"
 is_mode : null
@@ -10,9 +12,9 @@ solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg
 lr : 0.001
-diag_shift : 1.e-6
+diag_shift : 1.e-8
 n_iter : 6000
-sample_size : 0
+sample_size : 10
 chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : null

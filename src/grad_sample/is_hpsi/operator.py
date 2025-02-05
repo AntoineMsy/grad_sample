@@ -40,8 +40,8 @@ class IS_Operator(AbstractObservable):
         self._resample_fraction = resample_fraction
         self._is_mode = is_mode
 
-        if mode not in ['holomorphic', 'real']:
-            raise ValueError('Invalid jacobian mode specified. Must be either real or holomorphic')
+        if mode not in ['holomorphic', 'real', 'complex']:
+            raise ValueError('Invalid jacobian mode specified. Must be either real, holomorphic or complex')
         
         self._mode = mode
 
