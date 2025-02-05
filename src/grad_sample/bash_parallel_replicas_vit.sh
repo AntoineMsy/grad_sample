@@ -2,7 +2,7 @@
 
 # Fixed variables
 sample_size=10
-n_iter=8000
+n_iter=1000
 
 # Function to convert scientific notation to decimal format
 convert_to_decimal() {
@@ -38,9 +38,8 @@ generate_list() {
 # Generate the `lrs` list
 lrs_start=0.0001
 lrs_end=0.01
-lrs_points=2
+lrs_points=5
 lrs=($(generate_list $lrs_start $lrs_end $lrs_points))
-
 
 # Print the lists
 echo "Generated lrs: ${lrs[@]}"
@@ -63,7 +62,7 @@ run_is_mode_on_device() {
     local device="$1"
     local is_mode="$2"
     for lr in "${lrs[@]}"; do
-        cmd="python main.py --config-name=vit_j1j2 sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode"
+        cmd="python main.py --config-name=vit_large model=j1j2 sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode"
         echo "Launching: $cmd"
         eval "$cmd"
     done
@@ -86,7 +85,7 @@ run_is_mode_on_device() {
 #     run_is_mode_on_device "$device" "$is_mode" &
 # done
 
-is_modes=(2.0 1.8 1.4 1.0 0.8)
+is_modes=(2.0 1.5 1.0)
 # Assign each is_mode to a specific device
 for i in "${!is_modes[@]}"; do
     device=$((i + 1))  # Devices are numbered 1, 2, ...
@@ -94,7 +93,7 @@ for i in "${!is_modes[@]}"; do
     run_is_mode_on_device "$device" "$is_mode" &
 done
 wait
-is_modes=(0.5 0.1 0.01 0.001 0.0)
+is_modes=(0.5 0.1 0.0)
 # Assign each is_mode to a specific device
 for i in "${!is_modes[@]}"; do
     device=$((i + 1))  # Devices are numbered 1, 2, ...
@@ -102,8 +101,22 @@ for i in "${!is_modes[@]}"; do
     run_is_mode_on_device "$device" "$is_mode" &
 done
 
-# sample_size=10
-
+sample_size=11
+is_modes=(2.0 1.5 1.0)
+# Assign each is_mode to a specific device
+for i in "${!is_modes[@]}"; do
+    device=$((i + 1))  # Devices are numbered 1, 2, ...
+    is_mode="${is_modes[$i]}"
+    run_is_mode_on_device "$device" "$is_mode" &
+done
+wait
+is_modes=(0.5 0.1 0.0)
+# Assign each is_mode to a specific device
+for i in "${!is_modes[@]}"; do
+    device=$((i + 1))  # Devices are numbered 1, 2, ...
+    is_mode="${is_modes[$i]}"
+    run_is_mode_on_device "$device" "$is_mode" &
+done
 # is_modes=(2.0 1.8 1.6 1.4 1.2)
 # # Assign each is_mode to a specific device
 # for i in "${!is_modes[@]}"; do

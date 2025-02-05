@@ -86,14 +86,18 @@ class Trainer(Problem):
 
         self.autodiagshift = advd.callbacks.PI_controller_diagshift(diag_shift_max=0.01)
 
+        def dummy_cb(step, log_data, driver): 
+            return True
+        
         if self.save_every != None:
             self.out_log = (self.json_log, self.state_log)
         else :
             self.out_log = (self.json_log,)
+
         if self.E_gs != None:
             self.callbacks=(self.save_rel_err_cb(self.fs_state_rel_err),)
         else:
-            self.callbacks = None
+            self.callbacks = (dummy_cb,)
 
     def __call__(self):
 
@@ -138,12 +142,17 @@ class Trainer(Problem):
                     self.diag_shift_schedulers[i],
                     self.vstate,
                 )
-                
-                driver.run(
-                    n_iter=self.n_iter,
-                    out=self.out_log,
-                    callback=self.callbacks,
-                )
+                if self.E_gs != None :
+                    driver.run(
+                        n_iter=self.n_iter,
+                        out=self.out_log,
+                        callback=self.callbacks,
+                    )
+                else :
+                    driver.run(
+                        n_iter=self.n_iter,
+                        out=self.out_log,
+                    )
                 old_vars = self.vstate.variables
                     
 

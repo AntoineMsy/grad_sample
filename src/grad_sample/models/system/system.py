@@ -102,7 +102,10 @@ class Square_Heisenberg(Spin_Half):
     ):
         super().__init__(N=int(L**2), L=L, J=J, sz_sector=sz_sector)
         self.name = "Square_Heisenberg"
-        self.h = J[0]
+        try:
+            self.h = J[1]
+        except:
+            self.h = 1
         self.patching = patching
         self.graph = nk.graph.Square(length=L, max_neighbor_order=len(J), pbc=self.pbc)
         self.graph_name = "Square"
