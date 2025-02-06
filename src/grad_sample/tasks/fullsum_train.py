@@ -12,7 +12,7 @@ from grad_sample.utils.utils import save_cb
 from netket.vqs import FullSumState
 import json
 import matplotlib.pyplot as plt
-from grad_sample.utils.utils import save_rel_err_fs, save_snr
+from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large
 from functools import partial
 import advanced_drivers as advd
 import optax
@@ -48,14 +48,14 @@ class Trainer(Problem):
         
         if self.use_symmetries:
             self.n_symm_stages = len(self.model.symmetrizing_functions)
-            self.lr_factor = 0.5
+            self.lr_factor = 0.2
             self.diag_shift_factor = 1e-2
             self.lr_schedulers = [
                     optax.cosine_decay_schedule(
                         init_value=self.lr,
                         decay_steps=self.n_iter,
                         alpha=self.lr_factor,
-                        exponent=1,
+                        exponent=10,
                     )
                     for i in range(self.n_symm_stages)
                             ]   
@@ -64,7 +64,7 @@ class Trainer(Problem):
                     init_value=self.diag_shift,
                     decay_steps=self.n_iter,
                     alpha=self.diag_shift_factor,
-                    exponent=1,
+                    exponent=10,
                 )
                 for i in range(self.n_symm_stages)
             ]
@@ -82,12 +82,8 @@ class Trainer(Problem):
         
         self.plot_training_curve = True
         self.fs_state_rel_err = FullSumState(hilbert = self.gs.state.hilbert, model = self.gs.state.model, chunk_size=None, seed=0)
-        self.save_rel_err_cb = lambda fs_state : partial(save_rel_err_fs, e_gs = self.E_gs, fs_state = fs_state, save_every =25)
-
+        
         self.autodiagshift = advd.callbacks.PI_controller_diagshift(diag_shift_max=0.01)
-
-        def dummy_cb(step, log_data, driver): 
-            return True
         
         if self.save_every != None:
             self.out_log = (self.json_log, self.state_log)
@@ -95,9 +91,11 @@ class Trainer(Problem):
             self.out_log = (self.json_log,)
 
         if self.E_gs != None:
-            self.callbacks=(self.save_rel_err_cb(self.fs_state_rel_err),)
+            self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, fs_state = self.fs_state_rel_err, save_every=25)
         else:
-            self.callbacks = (dummy_cb,)
+            self.save_rel_err_cb  = partial(save_rel_err_large, e_ref=self.E_ref, n_sites=self.model.graph.n_nodes, save_every=50)
+        
+        self.callbacks=(self.save_rel_err_cb,)
 
     def __call__(self):
 
@@ -154,7 +152,13 @@ class Trainer(Problem):
                         out=self.out_log,
                     )
                 old_vars = self.vstate.variables
-                    
+        # if self.E_gs == None:
+        #     # post training : get accurate estimation of the energy with a high number of samples with psi squared
+        #     self.vstate.n_samples = 2**15
+        #     try:
+        #         E_final = self.vstate.expect(self._ham.operator)
+        #     except :
+        #         E_final = self.vstate.expect(self._ham)
 
         if self.plot_training_curve and self.E_gs != None:
             log_opt = self.output_dir + ".log"

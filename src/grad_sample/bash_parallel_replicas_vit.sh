@@ -2,7 +2,7 @@
 
 # Fixed variables
 sample_size=10
-n_iter=1000
+n_iter=5000
 
 # Function to convert scientific notation to decimal format
 convert_to_decimal() {
@@ -38,7 +38,7 @@ generate_list() {
 # Generate the `lrs` list
 lrs_start=0.0001
 lrs_end=0.01
-lrs_points=5
+lrs_points=2
 lrs=($(generate_list $lrs_start $lrs_end $lrs_points))
 
 # Print the lists
@@ -62,7 +62,7 @@ run_is_mode_on_device() {
     local device="$1"
     local is_mode="$2"
     for lr in "${lrs[@]}"; do
-        cmd="python main.py --config-name=vit_large model=j1j2 sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode"
+        cmd="python main.py --config-name=vit_large_nosym model=j1j2 sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode"
         echo "Launching: $cmd"
         eval "$cmd"
     done

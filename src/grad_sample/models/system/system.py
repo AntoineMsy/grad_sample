@@ -104,6 +104,7 @@ class Square_Heisenberg(Spin_Half):
         self.name = "Square_Heisenberg"
         try:
             self.h = J[1]
+            self.name = "J1J2"
         except:
             self.h = 1
         self.patching = patching

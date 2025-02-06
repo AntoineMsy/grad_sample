@@ -32,6 +32,22 @@ def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
         logdata["rel_err"] = jnp.abs(e-e_gs)/jnp.abs(e_gs)
     return True
 
+def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=36, save_every=1):
+    # compare an estimate of the energy with a large number of samples to a litterature reference
+    n_s_orig = driver.state.n_samples
+    driver.state.n_samples = n_s
+    if driver.step_count % save_every == 0:
+        # e = fs_state.expect(driver._ham.operator).mean.real
+        try:
+            # is operator case
+            e = driver.state.expect(driver._ham.operator).mean.real
+        except: 
+            e = driver.state.expect(driver._ham).mean.real
+
+        logdata["rel_err"] = (e/4/n_sites -e_ref)/jnp.abs(e_ref)
+    driver.state.n_samples = n_s_orig
+    return True
+
 def save_snr(step, logdata, driver, save_every=1):
     if driver.step_count % save_every == 0:
         snr_jac, snr_f = snr_comp(driver.state, driver._ham, chunk_size=driver.state.chunk_size)

@@ -2,6 +2,7 @@ from copy import deepcopy
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import call, instantiate
 import os
+import json
 import netket as nk
 import optax
 import scipy
@@ -105,7 +106,7 @@ class Problem:
             self.use_symmetries = False
 
         if self.diag_shift == 'schedule':
-            start_diag_shift, end_diag_shift = 1e-3, 1e-8
+            start_diag_shift, end_diag_shift = 1e-2, 1e-5
 
             # Define a linear schedule for diag_shift using optax
             self.diag_shift = optax.linear_schedule(
@@ -190,8 +191,23 @@ class Problem:
             self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
             print("The ground state energy is:", self.E_gs)
         except : 
-            print('Hilbert space too large for exact diag')
             self.E_gs = None
+            print('Hilbert space too large for exact diag, loading reference energy from litterature')
+            self.ref_energies = json.load(open("/home/amisery/phd/grad_sample/energy_ref_litt.json"))
+        
+            self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+            if 'exact' in self.e_dict.keys():
+                self.E_ref = self.e_dict['exact']
+            elif 'qmc' in self.e_dict.keys():
+                self.E_ref = self.e_dict['qmc']
+            elif 'rbm+pp' in self.e_dict.keys():
+                self.E_ref = self.e_dict['rbm+pp']
+            else :
+                self.E_ref = self.e_dict['aochen']
+
+            # except:
+            #     raise(FileNotFoundError(f'Error while retrieving reference energy for {self.model.name}, at coupling {self.model.h} and L {self.model.graph.n_nodes**(1/self.model.graph.ndim)} '))
+            
 
         self.json_log = nk.logging.JsonLog(output_prefix=self.output_dir)
         if self.save_every != None:
