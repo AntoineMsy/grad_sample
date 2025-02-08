@@ -89,7 +89,7 @@ def local_value_kernel_jax(
     w_is_sigma = jnp.abs(jnp.exp(logpsi_σ- log_is_sigma))**2
     Z_ratio = 1/nkstats.mean(w_is_sigma)
     w_is_sigma = w_is_sigma * Z_ratio #provide self normalized is weight
-    return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1), w_is_sigma
+    return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1), w_is_sigma, logpsi_σ.real
 
 
 def local_value_kernel_jax_conn_chunked(
@@ -119,7 +119,7 @@ def local_value_kernel_jax_conn_chunked(
     w_is_sigma = jnp.abs(jnp.exp(logpsi_σ- log_is_sigma))**2
     Z_ratio = 1/nkstats.mean(w_is_sigma)
     w_is_sigma = w_is_sigma * Z_ratio #provide self normalized is weight
-    return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1), w_is_sigma
+    return jnp.sum(mel * jnp.exp(logpsi_σp - jnp.expand_dims(logpsi_σ, -1)), axis=-1), w_is_sigma, logpsi_σ.real
 
 
 # ## Chunked versions of those kernels are defined below.

@@ -395,7 +395,7 @@ def expect_grad_var_is(
         snr = tree_map(lambda v,g: jnp.abs(g.T)/jnp.sqrt(v), loc_var, grad)
         # loc_var = tree_map(lambda x,y: jnp.mean(jnp.broadcast_to((w_is_sigma * Z_ratio)**2, y.shape) * jnp.abs(jnp.expand_dims(x.T,-1)-y)**2, axis=-1), grad, force_pytree_unrolled)
         
-        log_modulus_sigma = nkjax.apply_chunked(lambda x: jnp.log(jnp.abs(jnp.exp(log_psi(parameters, x)))), chunk_size=chunk_size)(sigma)
+        log_modulus_sigma = nkjax.apply_chunked(lambda x: jnp.log(jnp.abs(jnp.exp(log_psi(parameters, x)))), chunk_size=chunk_size)(sigma) # also real part of log
         # log_modulus_sigma_alpha = nkjax.apply_chunked(lambda x: jnp.log(jnp.abs(jnp.exp(log_psi(parameters, x)))), chunk_size=chunk_size)(sigma)
         log_modulus_sigma -= jnp.mean(log_modulus_sigma)
         grad_var = tree_map(lambda x,y: -jnp.mean(jnp.broadcast_to((w_is_sigma * Z_ratio)**2 * log_modulus_sigma/log_psi_sigma.size, y.shape) * jnp.abs(jnp.expand_dims(x.T,-1)-y)**2, axis=-1), grad, force_pytree_unrolled)

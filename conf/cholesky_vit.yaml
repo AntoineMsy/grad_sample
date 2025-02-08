@@ -7,7 +7,7 @@ defaults:
   - solver_fn: cholesky
 
 device: null
-is_mode : null
+is_mode : 1.0
 lr : 0.0022
 diag_shift : schedule
 n_iter : 6000

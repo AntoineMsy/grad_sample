@@ -12,7 +12,7 @@ from grad_sample.utils.utils import save_cb
 from netket.vqs import FullSumState
 import json
 import matplotlib.pyplot as plt
-from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large
+from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha
 from functools import partial
 import advanced_drivers as advd
 import optax
@@ -94,8 +94,11 @@ class Trainer(Problem):
             self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, fs_state = self.fs_state_rel_err, save_every=25)
         else:
             self.save_rel_err_cb  = partial(save_rel_err_large, e_ref=self.E_ref, n_sites=self.model.graph.n_nodes, save_every=50)
-        
-        self.callbacks=(self.save_rel_err_cb,)
+            
+        if self.is_mode != None:
+            self.callbacks=(self.save_rel_err_cb, save_alpha)
+        else:
+            self.callbacks=(self.save_rel_err_cb,)
 
     def __call__(self):
 

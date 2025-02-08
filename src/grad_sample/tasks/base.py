@@ -193,7 +193,7 @@ class Problem:
         except : 
             self.E_gs = None
             print('Hilbert space too large for exact diag, loading reference energy from litterature')
-            self.ref_energies = json.load(open("../../../energy_ref_litt.json"))
+            self.ref_energies = json.load(open("../../energy_ref_litt.json"))
         
             self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
             if 'exact' in self.e_dict.keys():

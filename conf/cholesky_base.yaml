@@ -6,7 +6,7 @@ defaults:
   - sampler: exact
 
 device: null
-is_mode : null
+is_mode : 2.0
 solver_fn :
   _target_: netket.optimizer.solver.cholesky
   # _target_ : scipy.sparse.linalg.cg

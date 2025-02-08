@@ -19,6 +19,10 @@ def save_cb(step, logdata, driver):
     logdata["dp"] = dp
     return True
 
+def save_alpha(step, logdata, driver):
+    logdata['alpha'] = driver._ham.is_mode
+    return True
+
 def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
     if driver.step_count % save_every == 0:
         fs_state.variables = copy.deepcopy(driver.state.variables)
