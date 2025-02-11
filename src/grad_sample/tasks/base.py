@@ -106,13 +106,13 @@ class Problem:
             self.use_symmetries = False
 
         if self.diag_shift == 'schedule':
-            start_diag_shift, end_diag_shift = 1e-2, 1e-5
+            start_diag_shift, end_diag_shift = 1e-2, 1e-8
 
             # Define a linear schedule for diag_shift using optax
             self.diag_shift = optax.linear_schedule(
                 init_value=start_diag_shift,
                 end_value=end_diag_shift,
-                transition_steps=self.n_iter // 2
+                transition_steps=self.n_iter // 3
             )
         
         if self.sample_size == 0:
