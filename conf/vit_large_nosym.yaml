@@ -17,4 +17,4 @@ chunk_size_vmap : 100
 use_symmetries : false
 save_every : null
 run_index : null
-base_path : /scratch/.amisery/grad_sample_vit_replicas_large_nosym/
+base_path : /scratch/.amisery/grad_sample_vit_replicas_large_nosym_auto/

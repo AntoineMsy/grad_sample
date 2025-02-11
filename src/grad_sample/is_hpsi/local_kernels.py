@@ -83,6 +83,7 @@ def local_value_kernel_jax(
     """
     σp, mel = O.get_conn_padded(σ)
     logpsi_σ = logpsi(pars, σ)
+    log_mod_psi = jnp.log(jnp.abs(jnp.exp(logpsi(pars, σ))))
     log_is_sigma = log_is_fun(is_vars, σ) # Note: could improve computation time in some cases by making the isfunction a function of logpsi
     logpsi_σp = logpsi(pars, σp.reshape(-1, σp.shape[-1])).reshape(σp.shape[:-1])
 
@@ -107,6 +108,9 @@ def local_value_kernel_jax_conn_chunked(
     apply_conn = lambda s: logpsi(pars, s)
     apply_conn = nkjax.apply_chunked(apply_conn, in_axes=0, chunk_size=chunk_size)
 
+    apply_conn_mod = lambda s: jnp.log(jnp.abs(jnp.exp(logpsi(pars, s))))
+
+    apply_conn_mod = nkjax.apply_chunked(apply_conn_mod, in_axes=0, chunk_size=chunk_size)
     apply_conn_is = lambda s: log_is_fun(is_vars, s)
     apply_conn_is = nkjax.apply_chunked(apply_conn, in_axes=0, chunk_size=chunk_size)
 
@@ -114,7 +118,7 @@ def local_value_kernel_jax_conn_chunked(
 
     logpsi_σ = apply_conn(σ)
     logpsi_σp = apply_conn(σp.reshape(-1, σ.shape[-1])).reshape(σp.shape[:-1])
-
+    log_mod_psi = apply_conn(σ)
     log_is_sigma = apply_conn_is(σ)
     w_is_sigma = jnp.abs(jnp.exp(logpsi_σ- log_is_sigma))**2
     Z_ratio = 1/nkstats.mean(w_is_sigma)

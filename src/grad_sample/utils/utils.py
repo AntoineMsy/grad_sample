@@ -20,7 +20,9 @@ def save_cb(step, logdata, driver):
     return True
 
 def save_alpha(step, logdata, driver):
-    logdata['alpha'] = driver._ham.is_mode
+    if step%20 ==0:
+        print(driver._ham.is_mode)
+        logdata['alpha'] = driver._ham.is_mode
     return True
 
 def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
