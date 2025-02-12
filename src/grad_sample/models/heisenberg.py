@@ -35,24 +35,32 @@ class J1J2:
         
         self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hilbert_space, graph=self.graph, J=J, sign_rule=sign_rule, acting_on_subspace=self.acting_on_subspace)
 
-class Heisenberg1d:
-    def __init__(self, L=3, J=1.0, sign_rule=False, acting_on_subspace=0):
-        self.name = "heisenberg1d"
+class Heisenberg1d(Spin_Half):
+    def __init__(self, L=16, J=[1.0], sign_rule=[0.0], acting_on_subspace=0):
+        super().__init__(N=int(L), L=L, J=J, sz_sector=0)
+        if len(J) == 1:
+            self.name = "heisenberg1d"
+            self.h = J[0]
+        else :
+            self.name = 'J1J21d'
+            self.h = J[1]
         self.Ns = L
         self.L = L
-        self.h = J
         self.sign_rule = sign_rule
         self.acting_on_subspace = acting_on_subspace
 
-        self.graph = nk.graph.Chain(L, pbc=True)
+        self.graph = nk.graph.Chain(L, max_neighbor_order=len(J), pbc=True)
         
-        self.hilbert_space = nk.hilbert.Spin(s=1/2, N=self.lattice.n_nodes, total_sz=0, inverted_ordering=False)
-        
-        self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hi, graph=self.graph, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
-
+        self.hamiltonian = nk.operator.Heisenberg(hilbert=self.hilbert_space, graph=self.graph, J=J, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
+    
+    @staticmethod
+    def extract_patches1d(x, b):
+        # This might not work, may need to add a batch dimension as in extract_patches2d
+        # return rearrange(x, "(L_eff b) -> L_eff b", b=b)
+        return  x.reshape(*x.shape[:-1], -1, b)
+    
 class XXZ:
     def __init__(self, L=10, h=1.5):
-        
         self.name = "xxz"
         self.Ns = L
         self.L = L
@@ -71,7 +79,7 @@ class XXZ:
 class XXZ2d(Spin_Half):
 
     def __init__(self, L=4, h=1.5):
-        super().__init__(N=int(L**2), L=L, J=jnp.array([h]), sz_sector=0.0)
+        super().__init__(N=int(L**2), L=L, J=jnp.array([h]), sz_sector=0)
         self.name = "xxz"
         self.Ns = L
         self.L = L
@@ -82,7 +90,7 @@ class XXZ2d(Spin_Half):
         # self.hilbert_space = nk.hilbert.Spin(s=1/2, N=self.graph.n_nodes, total_sz=0, inverted_ordering=False)
         
         self.hamiltonian = 0
-        for (i,j) in self.graph.edges:
+        for (i,j) in self.graph.edges():
             self.hamiltonian += nk.operator.spin.sigmax(self.hilbert_space,i)*nk.operator.spin.sigmax(self.hilbert_space,j) + nk.operator.spin.sigmay(self.hilbert_space,i)*nk.operator.spin.sigmay(self.hilbert_space,j) + self.h*(nk.operator.spin.sigmaz(self.hilbert_space,i)*nk.operator.spin.sigmaz(self.hilbert_space,j))
         # op = nk.operator.GraphOperator(self.hi, graph=self.lattice, bond_ops=bond_operator)
         # self.H = nk.operator.Heisenberg(hilbert=self.hi, graph=self.lattice, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)

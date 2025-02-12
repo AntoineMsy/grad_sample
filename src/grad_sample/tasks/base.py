@@ -60,7 +60,7 @@ class Problem:
             # only works with rajah's model in models/system !
             self.ansatz = call(self.cfg.ansatz, system = self.model).network
             self.alpha = self.cfg.ansatz.d_model
-            self.mode = "real"
+            self.mode = "complex"
 
         elif 'MLP' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, hidden_activations=[nk.nn.log_cosh]*len(self.cfg.ansatz.hidden_dims_alpha))
@@ -80,7 +80,8 @@ class Problem:
         "netket.models.LogStateVector": "log_state",
          "netket.experimental.models.LSTMNet": "RNN",
          "grad_sample.ansatz.cnn.CNN": "CNN",
-         "deepnets.net.ViT2D": "ViT",
+         "deepnets.net.ViT2D": "ViT2D",
+         "deepnets.net.ViT1D": "ViT1D",
          'netket.models.MLP': 'MLP'}
          
         self.ansatz_name = dict_name[self.cfg.ansatz._target_]
@@ -106,13 +107,13 @@ class Problem:
             self.use_symmetries = False
 
         if self.diag_shift == 'schedule':
-            start_diag_shift, end_diag_shift = 1e-2, 1e-8
+            start_diag_shift, end_diag_shift = 1e-2, 8e-5
 
             # Define a linear schedule for diag_shift using optax
             self.diag_shift = optax.linear_schedule(
                 init_value=start_diag_shift,
                 end_value=end_diag_shift,
-                transition_steps=self.n_iter // 3
+                transition_steps=self.n_iter // 5
             )
         
         if self.sample_size == 0:
@@ -141,8 +142,11 @@ class Problem:
 
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
-
-        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        lr_schedule = optax.linear_schedule(init_value=self.lr,
+                                            end_value= self.lr/5,
+                                            transition_steps= self.n_iter//8)
+        # self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        self.opt = optax.sgd(learning_rate= lr_schedule)
         # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
         
         if self.is_mode != None:
@@ -204,6 +208,7 @@ class Problem:
                 self.E_ref = self.e_dict['rbm+pp']
             else :
                 self.E_ref = self.e_dict['aochen']
+            print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
 
             # except:
             #     raise(FileNotFoundError(f'Error while retrieving reference energy for {self.model.name}, at coupling {self.model.h} and L {self.model.graph.n_nodes**(1/self.model.graph.ndim)} '))

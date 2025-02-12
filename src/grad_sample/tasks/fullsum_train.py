@@ -68,16 +68,17 @@ class Trainer(Problem):
                 )
                 for i in range(self.n_symm_stages)
             ]
-                # symmetrized networks
+            # symmetrized networks
             self.nets = [f(self.ansatz) for f in self.model.symmetrizing_functions]
             # implementation of vmc such that the schedulers can be changed for each optimization stage
+
         if self.sample_size !=0:
             if self.is_mode != None:
                 # try out vmc_ng driver to use auto diagshift callback
                 self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
             else:
                 self.gs = advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
-        else:
+        else: #use netket vmc bc advd not compatible with FS State yet
             self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         
         self.plot_training_curve = True
@@ -155,15 +156,8 @@ class Trainer(Problem):
                         out=self.out_log,
                     )
                 old_vars = self.vstate.variables
-        # if self.E_gs == None:
-        #     # post training : get accurate estimation of the energy with a high number of samples with psi squared
-        #     self.vstate.n_samples = 2**15
-        #     try:
-        #         E_final = self.vstate.expect(self._ham.operator)
-        #     except :
-        #         E_final = self.vstate.expect(self._ham)
 
-        if self.plot_training_curve and self.E_gs != None:
+        if self.plot_training_curve and (self.E_gs != None or self.E_ref != None):
             log_opt = self.output_dir + ".log"
             data = json.load(open(log_opt))
             E=  data["Energy"]["Mean"]["real"]
@@ -182,7 +176,7 @@ class Trainer(Problem):
             log_opt = self.output_dir + ".log"
             data = json.load(open(log_opt))
             E=  data["Energy"]["Mean"]["real"]
-            plt.plot(jnp.abs(E), label= "MC Energy")
+            plt.plot(E, label= "MC Energy")
             try :
                 plt.title(f"Energy during training, {self.Nsample} samples")
             except: 

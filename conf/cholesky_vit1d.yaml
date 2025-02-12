@@ -1,0 +1,19 @@
+defaults:
+  - _self_
+  - model:  heisenberg1d
+  - ansatz: vit1d
+  - sampler: exchange
+  - task: train
+  - solver_fn: cholesky
+
+device: null
+is_mode : 1.0
+lr : 0.001
+diag_shift : 1e-3
+n_iter : 6000
+sample_size : 10
+chunk_size_jac: 1024
+chunk_size_vmap : 100
+save_every : null
+run_index : null
+base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample_vit1d
