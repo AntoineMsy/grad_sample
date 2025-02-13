@@ -75,7 +75,7 @@ class Trainer(Problem):
         if self.sample_size !=0:
             if self.is_mode != None:
                 # try out vmc_ng driver to use auto diagshift callback
-                self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+                self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift, auto_is=self.auto_is)
             else:
                 self.gs = advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
         else: #use netket vmc bc advd not compatible with FS State yet
@@ -92,14 +92,14 @@ class Trainer(Problem):
             self.out_log = (self.json_log,)
 
         if self.E_gs != None:
-            self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, fs_state = self.fs_state_rel_err, save_every=25)
+            self.save_rel_err_cb = partial(save_rel_err_fs, e_gs = self.E_gs, fs_state = self.fs_state_rel_err, save_every=25, output_dir=self.output_dir)
         else:
-            self.save_rel_err_cb  = partial(save_rel_err_large, e_ref=self.E_ref, n_sites=self.model.graph.n_nodes, save_every=50)
+            self.save_rel_err_cb  = partial(save_rel_err_large, e_ref=self.E_ref, n_sites=self.model.graph.n_nodes, save_every=50, output_dir=self.output_dir)
             
         if self.is_mode != None:
             self.callbacks=(self.save_rel_err_cb, save_alpha)
         else:
-            self.callbacks=(self.save_rel_err_cb,)
+            self.callbacks=(self.save_rel_err_cb)
 
     def __call__(self):
 

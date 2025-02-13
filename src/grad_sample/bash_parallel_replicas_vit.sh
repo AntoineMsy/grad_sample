@@ -2,7 +2,7 @@
 
 # Fixed variables
 sample_size=10
-n_iter=5000
+n_iter=6000
 
 # Function to convert scientific notation to decimal format
 convert_to_decimal() {
@@ -44,122 +44,57 @@ lrs=($(generate_list $lrs_start $lrs_end $lrs_points))
 # Print the lists
 echo "Generated lrs: ${lrs[@]}"
 # Values to iterate over
+#!/bin/bash
 
-
-# Function to generate and run commands for a specific device and is_mode
-# run_is_mode_on_device() {
-#     local device="$1"
-#     local is_mode="$2"
-#     for lr in "${lrs[@]}"; do
-#         for diag_shift in "${diag_shifts[@]}"; do
-#             cmd="python main.py sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode lr=$lr diag_shift=$diag_shift"
-#             echo "Launching: $cmd"
-#             eval "$cmd"
-#         done
-#     done
-# }
 run_is_mode_on_device() {
     local device="$1"
     local is_mode="$2"
-    for lr in "${lrs[@]}"; do
-        cmd="python main.py --config-name=vit_large_nosym model=j1j2 sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode"
-        echo "Launching: $cmd"
-        eval "$cmd"
-    done
+    local J_value="$3"
+    local sample_size="$4"  # New argument to pass J override value
+    # for lr in "${lrs[@]}"; do
+    cmd="python main.py --config-name=vit1d sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode $J_value"
+    echo "Launching: $cmd"
+    eval "$cmd"
+    # done
 }
 
-# is_modes=(2.0 1.0 0.0 0.5)
-# # Assign each is_mode to a specific device
-# for i in "${!is_modes[@]}"; do
-#     device=$((i + 3))  # Devices are numbered 1, 2, ...
-#     is_mode="${is_modes[$i]}"
-#     run_is_mode_on_device "$device" "$is_mode" &
-# done
-# wait
+run_group() {
+    local is_modes=("$@")  # Capture all arguments as an array
+    for i in "${!is_modes[@]}"; do
+        run_is_mode_on_device "$((i + 1))" "${is_modes[i]}" "$J_value" &
+    done
+    wait
+}
 
-# is_modes=(-1 0.0 0.5 1.0)
-# # Assign each is_mode to a specific device
-# for i in "${!is_modes[@]}"; do
-#     device=$((i + 3))  # Devices are numbered 1, 2, ...
-#     is_mode="${is_modes[$i]}"
-#     run_is_mode_on_device "$device" "$is_mode" &
-# done
-
-is_modes=(2.0 1.5 1.0)
-# Assign each is_mode to a specific device
-for i in "${!is_modes[@]}"; do
-    device=$((i + 1))  # Devices are numbered 1, 2, ...
-    is_mode="${is_modes[$i]}"
-    run_is_mode_on_device "$device" "$is_mode" &
+run_group_samples() {
+    local sample_sizes=("$@")  # Capture all arguments as an array
+    for i in "${!sample_sizes[@]}"; do
+        run_is_mode_on_device "$((i + 1))" "$is_mode" "$J_value" "${sample_sizes[i]}" &
+    done
+    wait
+}
+# Values to iterate over for J
+J_values=("model.J=[1.0,0.4]" "model.J=[1.0,0.8]")
+# J_values=("model.J=[1.0,0.8]")
+is_mode=null
+for J_value in "${J_values[@]}"; do
+    run_group_samples 6 7 8 9 10
 done
-wait
-is_modes=(0.5 0.1 0.0)
-# Assign each is_mode to a specific device
-for i in "${!is_modes[@]}"; do
-    device=$((i + 1))  # Devices are numbered 1, 2, ...
-    is_mode="${is_modes[$i]}"
-    run_is_mode_on_device "$device" "$is_mode" &
-done
-
-sample_size=11
-is_modes=(2.0 1.5 1.0)
-# Assign each is_mode to a specific device
-for i in "${!is_modes[@]}"; do
-    device=$((i + 1))  # Devices are numbered 1, 2, ...
-    is_mode="${is_modes[$i]}"
-    run_is_mode_on_device "$device" "$is_mode" &
-done
-wait
-is_modes=(0.5 0.1 0.0)
-# Assign each is_mode to a specific device
-for i in "${!is_modes[@]}"; do
-    device=$((i + 1))  # Devices are numbered 1, 2, ...
-    is_mode="${is_modes[$i]}"
-    run_is_mode_on_device "$device" "$is_mode" &
-done
-# is_modes=(2.0 1.8 1.6 1.4 1.2)
-# # Assign each is_mode to a specific device
-# for i in "${!is_modes[@]}"; do
-#     device=$((i + 1))  # Devices are numbered 1, 2, ...
-#     is_mode="${is_modes[$i]}"
-#     run_is_mode_on_device "$device" "$is_mode" &
+# First batch
+# sample_size=10
+# for J_value in "${J_values[@]}"; do
+#     run_group 2.0 1.8 1.5 1.0 0.5 0.1
 # done
-# wait
-# is_modes=(1.0 0.8 0.6 0.5 0.4)
-# # Assign each is_mode to a specific device
-# for i in "${!is_modes[@]}"; do
-#     device=$((i + 1))  # Devices are numbered 1, 2, ...
-#     is_mode="${is_modes[$i]}"
-#     run_is_mode_on_device "$device" "$is_mode" &
+
+# # Second batch with updated sample_size
+# sample_size=11
+# for J_value in "${J_values[@]}"; do
+#     run_group 2.0 1.8 1.5 1.0 0.5 0.1
 # done
-# wait
-# is_modes=(0.2 0.1 0.01 0.001 0.0)
-# # Assign each is_mode to a specific device
-# for i in "${!is_modes[@]}"; do
-#     device=$((i + 1))  # Devices are numbered 1, 2, ...
-#     is_mode="${is_modes[$i]}"
-#     run_is_mode_on_device "$device" "$is_mode" &
+
+
+# Second batch with updated sample_size
+
+# for J_value in "${J_values[@]}"; do
+#     run_group 2.0 1.8 1.5 1.0 0.5 0.1
 # done
-# wait
-
-
-
-# # is_modes=(2.0 0.2 0.6 0.8)
-# # wait
-# # # Assign each is_mode to a specific device
-# # for i in "${!is_modes[@]}"; do
-# #     device=$((i + 3))  # Devices are numbered 1, 2, ...
-# #     is_mode="${is_modes[$i]}"
-# #     run_is_mode_on_device "$device" "$is_mode" &
-# # done
-# # wait
-# # is_modes=(1.4 1.6 1.8)
-# # # Assign each is_mode to a specific device
-# # for i in "${!is_modes[@]}"; do
-# #     device=$((i + 3))  # Devices are numbered 1, 2, ...
-# #     is_mode="${is_modes[$i]}"
-# #     run_is_mode_on_device "$device" "$is_mode" &
-# # done
-# # # Wait for all background processes to complete
-
-# # echo "All tasks completed."

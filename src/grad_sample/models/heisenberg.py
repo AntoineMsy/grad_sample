@@ -59,12 +59,13 @@ class Heisenberg1d(Spin_Half):
         # return rearrange(x, "(L_eff b) -> L_eff b", b=b)
         return  x.reshape(*x.shape[:-1], -1, b)
     
-class XXZ:
-    def __init__(self, L=10, h=1.5):
+class XXZ(Spin_Half):
+    def __init__(self, L=10, J=1.5):
+        super().__init__(N=int(L), L=L, J=jnp.array([J]), sz_sector=0)
         self.name = "xxz"
         self.Ns = L
         self.L = L
-        self.h = h
+        self.h = J
         
         self.graph = nk.graph.Chain(L, pbc=True)
         
@@ -76,6 +77,12 @@ class XXZ:
         # op = nk.operator.GraphOperator(self.hi, graph=self.lattice, bond_ops=bond_operator)
         # self.H = nk.operator.Heisenberg(hilbert=self.hi, graph=self.lattice, J=self.h, sign_rule=self.sign_rule, acting_on_subspace=self.acting_on_subspace)
 
+    @staticmethod
+    def extract_patches1d(x, b):
+        # This might not work, may need to add a batch dimension as in extract_patches2d
+        # return rearrange(x, "(L_eff b) -> L_eff b", b=b)
+        return  x.reshape(*x.shape[:-1], -1, b)
+    
 class XXZ2d(Spin_Half):
 
     def __init__(self, L=4, h=1.5):

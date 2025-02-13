@@ -59,7 +59,7 @@ class Problem:
         elif "ViT" in self.cfg.ansatz._target_:
             # only works with rajah's model in models/system !
             self.ansatz = call(self.cfg.ansatz, system = self.model).network
-            self.alpha = self.cfg.ansatz.d_model
+            self.alpha = self.cfg.ansatz.depth
             self.mode = "complex"
 
         elif 'MLP' in self.cfg.ansatz._target_:
@@ -100,6 +100,7 @@ class Problem:
         # self.holomorphic = True
         self.sample_size = self.cfg.get("sample_size")
         self.is_mode = self.cfg.get("is_mode")
+        self.auto_is = self.cfg.get("auto_is")
 
         try:
             self.use_symmetries = self.cfg.get("use_symmetries")
@@ -107,13 +108,13 @@ class Problem:
             self.use_symmetries = False
 
         if self.diag_shift == 'schedule':
-            start_diag_shift, end_diag_shift = 1e-2, 8e-5
+            start_diag_shift, end_diag_shift = 1e-3, 1e-4
 
             # Define a linear schedule for diag_shift using optax
             self.diag_shift = optax.linear_schedule(
                 init_value=start_diag_shift,
                 end_value=end_diag_shift,
-                transition_steps=self.n_iter // 5
+                transition_steps=self.n_iter // 6
             )
         
         if self.sample_size == 0:
@@ -143,16 +144,16 @@ class Problem:
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
         lr_schedule = optax.linear_schedule(init_value=self.lr,
-                                            end_value= self.lr/5,
-                                            transition_steps= self.n_iter//8)
-        # self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
-        self.opt = optax.sgd(learning_rate= lr_schedule)
+                                            end_value= self.lr/2,
+                                            transition_steps= self.n_iter//3)
+        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        # self.opt = optax.sgd(learning_rate= lr_schedule)
         # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
         
         if self.is_mode != None:
             self.is_op = IS_Operator(operator = self.model.hamiltonian.to_jax_operator(), is_mode=self.is_mode, mode = self.mode)
             self.sr = lambda dshift : nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=dshift)
-            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift)
+            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is)
 
         else:
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
@@ -169,7 +170,9 @@ class Problem:
                 
         if self.sample_size == 0:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
-        elif self.is_mode != None: 
+        elif self.is_mode != None and self.auto_is: 
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
+        elif self.is_mode != None and not self.auto_is:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_name}/{self.lr}_{self.diag_exp}"
         else:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"

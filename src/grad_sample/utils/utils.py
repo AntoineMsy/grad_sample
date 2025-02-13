@@ -2,6 +2,7 @@ import netket.jax as nkjax
 from scipy.sparse.linalg import eigsh
 from netket.vqs import FullSumState
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
 from grad_sample.is_hpsi.expect import snr_comp
 import copy
 
@@ -25,7 +26,7 @@ def save_alpha(step, logdata, driver):
         logdata['alpha'] = driver._ham.is_mode
     return True
 
-def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
+def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1, output_dir=None):
     if driver.step_count % save_every == 0:
         fs_state.variables = copy.deepcopy(driver.state.variables)
         # e = fs_state.expect(driver._ham.operator).mean.real
@@ -36,9 +37,20 @@ def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1):
             e = fs_state.expect(driver._ham).mean.real
 
         logdata["rel_err"] = jnp.abs(e-e_gs)/jnp.abs(e_gs)
+        # if output_dir!=None and driver.step_count % 10*save_every == 0:
+        #     fig, ax = plt.subplots()
+        #     e_r_fs = logdata["rel_err"]
+        #     ax.plot(e_r_fs["iters"], e_r_fs["value"], label= "FullSum")
+            
+        #     ax.set_title(f"Partial training curve")
+        #     ax.set_xlabel("iteration")
+        #     ax.set_ylabel("Relative error")
+        #     ax.set_yscale("log")
+        #     plt.savefig(output_dir + '/training_partial.png')
+        #     plt.clf()
     return True
 
-def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=36, save_every=1):
+def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=36, save_every=1, output_dir=None):
     # compare an estimate of the energy with a large number of samples to a litterature reference
     n_s_orig = driver.state.n_samples
     driver.state.n_samples = n_s
@@ -51,6 +63,17 @@ def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=36, sa
             e = driver.state.expect(driver._ham).mean.real
 
         logdata["rel_err"] = (e/4/n_sites -e_ref)/jnp.abs(e_ref)
+        # if output_dir!=None and driver.step_count % 2*save_every == 0:
+        #     fig, ax = plt.subplots()
+        #     e_r_fs = logdata["rel_err"]
+        #     ax.plot(e_r_fs["iters"], e_r_fs["value"], label= "FullSum")
+            
+        #     ax.set_title(f"Partial training curve")
+        #     ax.set_xlabel("iteration")
+        #     ax.set_ylabel("Relative error")
+        #     ax.set_yscale("log")
+        #     plt.savefig(output_dir + '/training_partial.png')
+        #     plt.clf()
     driver.state.n_samples = n_s_orig
     return True
 
