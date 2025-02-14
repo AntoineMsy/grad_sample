@@ -7,14 +7,14 @@ defaults:
   - solver_fn: pinv_smooth
 
 device: null
-is_mode : 2.0
+is_mode : null
 lr : 0.001
 diag_shift : schedule
-n_iter : 5000
+n_iter : 6000
 sample_size : 10
 chunk_size_jac: 512
 chunk_size_vmap : 100
 use_symmetries : false
 save_every : null
 run_index : null
-base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample_vit_replicas_large_nosym/
+base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample_vit_replicas_2d_samples/

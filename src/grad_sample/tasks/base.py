@@ -108,7 +108,7 @@ class Problem:
             self.use_symmetries = False
 
         if self.diag_shift == 'schedule':
-            start_diag_shift, end_diag_shift = 1e-3, 1e-4
+            start_diag_shift, end_diag_shift = 1e-2, 1e-4
 
             # Define a linear schedule for diag_shift using optax
             self.diag_shift = optax.linear_schedule(
@@ -145,9 +145,22 @@ class Problem:
             self.vstate.init_parameters()
         lr_schedule = optax.linear_schedule(init_value=self.lr,
                                             end_value= self.lr/2,
-                                            transition_steps= self.n_iter//3)
-        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
-        # self.opt = optax.sgd(learning_rate= lr_schedule)
+                                            transition_steps= self.n_iter//8)
+        
+        lr_schedule = optax.cosine_decay_schedule(
+                    init_value=0.003,
+                    decay_steps=self.n_iter//6,
+                    alpha=0.5,
+                    exponent=1,
+                )
+        # sch = optax.cosine_decay_schedule(
+        #                     init_value=1e-2,
+        #                     decay_steps=1000,
+        #                     alpha=0.01,
+        #                     exponent=4,
+        #         )
+        # self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        self.opt = optax.sgd(learning_rate= lr_schedule)
         # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
         
         if self.is_mode != None:
