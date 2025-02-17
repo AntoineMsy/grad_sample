@@ -17,4 +17,5 @@ chunk_size_vmap : 100
 use_symmetries : false
 save_every : null
 run_index : null
-base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample_vit_replicas_2d_samples/
+use_ntk: true
+base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample_vit_replicas_large/

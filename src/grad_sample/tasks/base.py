@@ -101,6 +101,7 @@ class Problem:
         self.sample_size = self.cfg.get("sample_size")
         self.is_mode = self.cfg.get("is_mode")
         self.auto_is = self.cfg.get("auto_is")
+        self.use_ntk = self.cfg.get("use_ntk", False)
 
         try:
             self.use_symmetries = self.cfg.get("use_symmetries")
@@ -166,12 +167,12 @@ class Problem:
         if self.is_mode != None:
             self.is_op = IS_Operator(operator = self.model.hamiltonian.to_jax_operator(), is_mode=self.is_mode, mode = self.mode)
             self.sr = lambda dshift : nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=dshift)
-            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is)
+            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is, use_ntk = self.use_ntk)
 
         else:
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
             self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, diag_shift = dshift)
+            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, diag_shift = dshift, use_ntk = self.use_ntk)
 
         # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
 

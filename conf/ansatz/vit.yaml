@@ -1,6 +1,6 @@
 _target_ : deepnets.net.ViT2D
-depth: 2
-d_model: 12
+depth: 4
+d_model: 36
 heads: 12
 linear_patch_size: 2
 output_head_name: "RBMnoLayer" #Vanilla/NoPatching

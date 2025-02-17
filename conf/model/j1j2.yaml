@@ -1,4 +1,4 @@
 _target_ : grad_sample.models.system.system.Square_Heisenberg
-J: [1.0, 0.8]
+J: [1.0, 0.5]
 L: 6
 sign_rule: [0.0, 0.0]
