@@ -52,7 +52,8 @@ run_is_mode_on_device() {
     local J_value="$3"
     local sample_size="$4"  # New argument to pass J override value
     # for lr in "${lrs[@]}"; do
-    cmd="python main.py --config-name=vit1d sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode $J_value"
+    # cmd="python main.py --config-name=vit_large_nosym sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode $J_value"
+    cmd="python main.py --config-name=vit_large_nosym sample_size=$sample_size device='$device' n_iter=$n_iter is_mode=$is_mode"
     echo "Launching: $cmd"
     eval "$cmd"
     # done
@@ -75,10 +76,19 @@ run_group_samples() {
 }
 # Values to iterate over for J
 J_values=("model.J=[1.0,0.4]" "model.J=[1.0,0.8]")
-# J_values=("model.J=[1.0,0.8]")
-is_mode=null
+J_values=("model.J=[1.0,0.5]")
+is_mode=1.0
 for J_value in "${J_values[@]}"; do
-    run_group_samples 6 7 8 9 10
+    run_group_samples 8 9 10
+done
+is_mode=0.5
+for J_value in "${J_values[@]}"; do
+    run_group_samples 8 9 10
+done
+
+is_mode=1.8
+for J_value in "${J_values[@]}"; do
+    run_group_samples 8 9 10
 done
 # First batch
 # sample_size=10

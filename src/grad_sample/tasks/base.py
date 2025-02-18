@@ -100,7 +100,7 @@ class Problem:
         # self.holomorphic = True
         self.sample_size = self.cfg.get("sample_size")
         self.is_mode = self.cfg.get("is_mode")
-        self.auto_is = self.cfg.get("auto_is")
+        self.auto_is = self.cfg.get("auto_is", False)
         self.use_ntk = self.cfg.get("use_ntk", False)
 
         try:
