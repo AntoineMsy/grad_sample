@@ -13,7 +13,7 @@ from grad_sample.utils.utils import save_cb, e_diag
 from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
 from grad_sample.is_hpsi.operator import IS_Operator
 from grad_sample.is_hpsi.expect import *
-import advanced_drivers as advd
+import auto_importance as advd
 
 from typing import Sequence
 def to_sequence(arg):
@@ -27,15 +27,11 @@ class Problem:
     def __init__(self, cfg : DictConfig):
         self.cfg = deepcopy(cfg)
         nk.config.netket_enable_x64 = True
-        # self.device = self.cfg.get("device")
-        # # set working device
-        # os.environ["CUDA_VISIBLE_DEVICES"]= str(self.device)
 
         # Instantiate model class (Ising, Heisenberg...)
         self.model = instantiate(self.cfg.model)
-        print(jax.devices())
+
         # Instantiate ansatz
-        print(self.cfg.ansatz)
         sym_group = self.model.graph.translation_group()
         self.mode = "holomorphic"
 
@@ -97,9 +93,8 @@ class Problem:
         self.save_every = self.cfg.get("save_every")
         self.base_path = self.cfg.get("base_path")
 
-        # self.holomorphic = True
         self.sample_size = self.cfg.get("sample_size")
-        self.is_mode = self.cfg.get("is_mode")
+        self.is_distrib = instantiate(self.cfg.is_distrib)
         self.auto_is = self.cfg.get("auto_is", False)
         self.use_ntk = self.cfg.get("use_ntk", False)
 
@@ -155,43 +150,37 @@ class Problem:
                     alpha=0.5,
                     exponent=1,
                 )
-        # sch = optax.cosine_decay_schedule(
-        #                     init_value=1e-2,
-        #                     decay_steps=1000,
-        #                     alpha=0.01,
-        #                     exponent=4,
-        #         )
+
         self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
         # self.opt = optax.sgd(learning_rate= lr_schedule)
         # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
+
+        self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, 
+                                    solver=self.solver_fn, 
+                                    diag_shift=self.diag_shift, 
+                                    holomorphic= self.mode == "holomorphic")
         
-        if self.is_mode != None:
-            self.is_op = IS_Operator(operator = self.model.hamiltonian.to_jax_operator(), is_mode=self.is_mode, mode = self.mode)
-            self.sr = lambda dshift : nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=dshift)
-            # self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is, use_ntk = self.use_ntk)
-            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is, use_ntk = self.use_ntk)
-
-        else:
-            # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-            self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, diag_shift = dshift, use_ntk = self.use_ntk)
-
-        # self.sr = nk.optimizer.SR(diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")
-
-        if not self.is_mode == None:
-            if self.is_mode == -1:
-                self.is_name = "hpsi"
-            else:
-                self.is_name = self.is_mode
-                
+        self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
+                                                                        optimizer=opt, 
+                                                                        sampling_distribution=self.is_distrib,
+                                                                        variational_state=vstate, 
+                                                                        diag_shift = dshift, 
+                                                                        use_ntk = self.use_ntk,
+                                                                        on_the_fly = False,
+                                                                        auto_is = self.auto_is)
+                                                                        
+        # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
-        elif self.is_mode != None and self.auto_is: 
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
-        elif self.is_mode != None and not self.auto_is:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_name}/{self.lr}_{self.diag_exp}"
-        else:
+        if self.is_distrib.name == 'overdispersed':
+            if self.auto_is: 
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
+            else:
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_distrib.alpha}/{self.lr}_{self.diag_exp}"
+        elif self.is_distrib.name == 'default':
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
+        else:
+            raise NotImplementedError()
         
         # create dir if it doesn't already exist, if not in analysis mode
         self.run_index = self.cfg.get("run_index")
@@ -228,6 +217,7 @@ class Problem:
             else :
                 self.E_ref = self.e_dict['aochen']
             print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
+            self.E_gs = self.E_ref*self.model.graph.n_nodes*4
 
             # except:
             #     raise(FileNotFoundError(f'Error while retrieving reference energy for {self.model.name}, at coupling {self.model.h} and L {self.model.graph.n_nodes**(1/self.model.graph.ndim)} '))
