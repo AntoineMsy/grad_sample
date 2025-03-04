@@ -14,7 +14,7 @@ import json
 import matplotlib.pyplot as plt
 from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha
 from functools import partial
-import advanced_drivers as advd
+# import advanced_drivers as advd
 import optax
 
 def add_module(old_params: dict, new_params: dict, max_attempts: int = 10):
@@ -70,21 +70,21 @@ class Trainer(Problem):
             ]
             # symmetrized networks
             self.nets = [f(self.ansatz) for f in self.model.symmetrizing_functions]
-            # implementation of vmc such that the schedulers can be changed for each optimization stage
+        #     # implementation of vmc such that the schedulers can be changed for each optimization stage
 
-        if self.sample_size !=0:
-            if self.is_mode != None:
-                # try out vmc_ng driver to use auto diagshift callback
-                self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift, auto_is=self.auto_is)
-            else:
-                self.gs = advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
-        else: #use netket vmc bc advd not compatible with FS State yet
-            self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
+        # if self.sample_size !=0:
+        #     if self.is_mode != None:
+        #         # try out vmc_ng driver to use auto diagshift callback
+        #         self.gs = advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift, auto_is=self.auto_is)
+        #     else:
+        #         self.gs = advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, diag_shift=self.diag_shift)
+        # else: #use netket vmc bc advd not compatible with FS State yet
+        self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=self.opt, variational_state=self.vstate, preconditioner=self.sr)
         
         self.plot_training_curve = True
         self.fs_state_rel_err = FullSumState(hilbert = self.gs.state.hilbert, model = self.gs.state.model, chunk_size=None, seed=0)
         
-        self.autodiagshift = advd.callbacks.PI_controller_diagshift(diag_shift_max=0.01)
+        # self.autodiagshift = advd.callbacks.PI_controller_diagshift(diag_shift_max=0.01, diag_shift_min=1e-6, safety_fac=1.0, clip_min=0.99, clip_max=1.01)
         
         if self.save_every != None:
             self.out_log = (self.json_log, self.state_log)

@@ -6,8 +6,9 @@ defaults:
   - solver_fn: cholesky
   - sampler: exact
 
-device: "4"
+device: "2"
 is_mode : 2.0
+auto_is: true
 lr : 0.0022
 diag_shift : 1e-4
 n_iter : 2000

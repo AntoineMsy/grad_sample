@@ -144,6 +144,7 @@ class Problem:
 
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
+
         lr_schedule = optax.linear_schedule(init_value=self.lr,
                                             end_value= self.lr/2,
                                             transition_steps= self.n_iter//8)
@@ -160,14 +161,15 @@ class Problem:
         #                     alpha=0.01,
         #                     exponent=4,
         #         )
-        # self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
-        self.opt = optax.sgd(learning_rate= lr_schedule)
+        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
+        # self.opt = optax.sgd(learning_rate= lr_schedule)
         # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
         
         if self.is_mode != None:
             self.is_op = IS_Operator(operator = self.model.hamiltonian.to_jax_operator(), is_mode=self.is_mode, mode = self.mode)
             self.sr = lambda dshift : nk.optimizer.SR(qgt = QGTJacobianDenseImportanceSampling(importance_operator=self.is_op, chunk_size=self.chunk_size_jac, mode=self.mode), solver=self.solver_fn, diag_shift=dshift)
-            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is, use_ntk = self.use_ntk)
+            # self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG_IS(hamiltonian=self.is_op, optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is, use_ntk = self.use_ntk)
+            self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), optimizer=opt, variational_state=vstate, diag_shift = dshift, auto_is=self.auto_is, use_ntk = self.use_ntk)
 
         else:
             # self.sr = nk.optimizer.SR(solver=self.solver_fn, diag_shift=self.diag_shift, holomorphic= self.mode == "holomorphic")

@@ -290,6 +290,7 @@ class Shastry_Sutherland(Spin_Half):
     def __init__(self, L: int, J: Sequence[float], sz_sector=0):
         if len(J) != 2:
             raise ValueError("Shastry-Sutherland model requires J1 and J2")
+        self.h = J[0]
         super().__init__(N=int(L**2), L=L, J=J, sz_sector=sz_sector)
         self.name = "Shastry_Sutherland"
         self.graph = nk.graph.Lattice(
