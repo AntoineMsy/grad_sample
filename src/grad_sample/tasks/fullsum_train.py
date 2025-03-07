@@ -170,7 +170,7 @@ class Trainer(Problem):
 
         log_opt = self.output_dir + ".log"
         data = json.load(open(log_opt))
-        E=  data["Energy"]["Mean"]["real"]
+        E=  jnp.array(data["Energy"]["Mean"]["real"])
         if self.plot_training_curve and (self.E_gs != None or self.E_ref != None):
             
             plt.plot(jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs), label= "MC")
