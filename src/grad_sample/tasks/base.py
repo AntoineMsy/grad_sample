@@ -55,7 +55,7 @@ class Problem:
         elif "ViT" in self.cfg.ansatz._target_:
             # only works with rajah's model in models/system !
             self.ansatz = call(self.cfg.ansatz, system = self.model).network
-            self.alpha = self.cfg.ansatz.depth
+            self.alpha = f"{self.cfg.ansatz.depth}_{self.cfg.ansatz.d_model}_{self.cfg.ansatz.heads}" #unique identifier for vit
             self.mode = "complex"
 
         elif 'MLP' in self.cfg.ansatz._target_:
@@ -96,7 +96,6 @@ class Problem:
         self.sample_size = self.cfg.get("sample_size")
         self.is_distrib = instantiate(self.cfg.is_distrib)
         self.auto_is = self.cfg.get("auto_is", False)
-        self.use_ntk = self.cfg.get("use_ntk", False)
 
         try:
             self.use_symmetries = self.cfg.get("use_symmetries")
@@ -107,12 +106,26 @@ class Problem:
             start_diag_shift, end_diag_shift = 1e-2, 1e-4
 
             # Define a linear schedule for diag_shift using optax
-            self.diag_shift = optax.linear_schedule(
+
+            self.diag_shift = optax.cosine_decay_schedule(
                 init_value=start_diag_shift,
-                end_value=end_diag_shift,
-                transition_steps=self.n_iter // 6
-            )
+                decay_steps=2000,
+                alpha=0.001
+            ) #moves the diagonal shift from 1e-2 to 1e-4
+    
+        if self.lr == "schedule":
+            lr_schedule = optax.cosine_decay_schedule(
+                                                    init_value=1e-3,
+                                                    decay_steps=2000,
+                                                    alpha=0.1
+                                                ) #moves the lr from 1e-3 to 1e-4
+            self.opt = optax.sgd(learning_rate=lr_schedule)
+        else:
+            self.opt = optax.sgd(learning_rate=self.lr)
+        # define optimizer
+        # self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr) #used with autodiagshift
         
+
         if self.sample_size == 0:
             if self.chunk_size_jac < self.model.hilbert_space.n_states:
                 self.chunk_size = self.model.hilbert_space.n_states // (self.model.hilbert_space.n_states//self.chunk_size_jac)
@@ -140,20 +153,14 @@ class Problem:
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
 
-        lr_schedule = optax.linear_schedule(init_value=self.lr,
-                                            end_value= self.lr/2,
-                                            transition_steps= self.n_iter//8)
+        # Choose between SR and SRt automatically
+        params = self.ansatz.init(
+            jax.random.PRNGKey(5), jnp.zeros((1, self.model.graph.n_nodes))
+        )
+        max_nparams = nk.jax.tree_size(params)
+        print(max_nparams)
+        self.use_ntk = max_nparams > self.Nsample
         
-        lr_schedule = optax.cosine_decay_schedule(
-                    init_value=0.003,
-                    decay_steps=self.n_iter//6,
-                    alpha=0.5,
-                    exponent=1,
-                )
-
-        self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr)
-        # self.opt = optax.sgd(learning_rate= lr_schedule)
-        # self.opt = nk.optimizer.Sgd(learning_rate=self.lr)
 
         self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, 
                                     solver=self.solver_fn, 
@@ -171,14 +178,14 @@ class Problem:
                                                                         
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
         if self.is_distrib.name == 'overdispersed':
             if self.auto_is: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
         elif self.is_distrib.name == 'default':
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
         else:
             raise NotImplementedError()
         

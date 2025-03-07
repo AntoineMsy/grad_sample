@@ -8,7 +8,7 @@ defaults:
   - is_distrib: overdispersed
 
 device: null
-lr : 0.001
+lr : schedule
 diag_shift : schedule
 n_iter : 6000
 sample_size : 10
