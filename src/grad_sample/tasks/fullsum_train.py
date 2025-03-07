@@ -95,13 +95,15 @@ class Trainer(Problem):
         else :
             self.out_log = (self.json_log,)
 
-        if self.E_gs != None:
+        try:
+            n_states = self.state.hilbert.n_states
             self.save_rel_err_cb = partial(save_rel_err_fs, 
                                            e_gs = self.E_gs, 
                                            fs_state = self.fs_state_rel_err, 
                                            save_every=25, 
                                            output_dir=self.output_dir)
-        else:
+        except:
+            print('Hilbert space too large to be indexed, using reference energy callback')
             self.save_rel_err_cb  = partial(save_rel_err_large, 
                                             e_ref=self.E_ref, 
                                             n_sites=self.model.graph.n_nodes, 

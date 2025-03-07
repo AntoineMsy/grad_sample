@@ -7,7 +7,7 @@ defaults:
   - sampler: exact
   - is_distrib: overdispersed
 
-device: "2"
+device: null
 auto_is: true
 lr : 0.0022
 diag_shift : 1e-4
@@ -17,4 +17,5 @@ chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : null
 run_index : null
-base_path : /scratch/.amisery/grad_sample_test/
+# base_path : /scratch/.amisery/grad_sample_test/
+base_path : /lustre/fsn1/projects/rech/rgs/uur87qh/train_is_test/

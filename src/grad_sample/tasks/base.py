@@ -176,7 +176,7 @@ class Problem:
             if self.auto_is: 
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_distrib.alpha}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
         elif self.is_distrib.name == 'default':
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/alpha{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
         else:
