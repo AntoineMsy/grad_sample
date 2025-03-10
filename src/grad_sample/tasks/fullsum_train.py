@@ -105,7 +105,7 @@ class Trainer(Problem):
         except:
             print('Hilbert space too large to be indexed, using reference energy callback')
             self.save_rel_err_cb  = partial(save_rel_err_large, 
-                                            e_ref=self.E_ref, 
+                                            e_ref=self.E_gs_per_site, 
                                             n_sites=self.model.graph.n_nodes, 
                                             save_every=50, 
                                             output_dir=self.output_dir)
@@ -171,7 +171,7 @@ class Trainer(Problem):
         log_opt = self.output_dir + ".log"
         data = json.load(open(log_opt))
         E=  jnp.array(data["Energy"]["Mean"]["real"])
-        if self.plot_training_curve and (self.E_gs != None or self.E_ref != None):
+        if self.plot_training_curve and (self.E_gs != None):
             
             plt.plot(jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs), label= "MC")
             e_r_fs = data["rel_err"]

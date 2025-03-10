@@ -116,7 +116,7 @@ class Problem:
     
         if self.lr == "schedule":
             lr_schedule = optax.cosine_decay_schedule(
-                                                    init_value=2e-3,
+                                                    init_value=3e-3,
                                                     decay_steps=3000,
                                                     alpha=0.1
                                                 ) #moves the lr from 1e-3 to 1e-4
@@ -148,15 +148,22 @@ class Problem:
                                                              sweep_size=self.model.graph.n_nodes, 
                                                              n_chains_per_rank=self.Nsample // 2
                                                              )
-            self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample)
+            self.vstate = nk.vqs.MCState(sampler= self.sampler, 
+                                         model=self.ansatz, 
+                                         chunk_size= self.chunk_size, 
+                                         n_samples= self.Nsample,
+                                        #  seed=0
+                                        )
             print("MC state loaded, num samples %d"%self.Nsample)
 
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
 
         # Choose between SR and SRt automatically
+        rng_key_pars = jax.random.PRNGKey(np.random.randint(10000))
+        # rng_key_pars = jax.random.PRNGKey(5)
         params = self.ansatz.init(
-            jax.random.PRNGKey(np.random.randint(10000)), jnp.zeros((1, self.model.graph.n_nodes))
+            rng_key_pars, jnp.zeros((1, self.model.graph.n_nodes))
         )
         max_nparams = nk.jax.tree_size(params)
         print(max_nparams)
@@ -227,6 +234,7 @@ class Problem:
             print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
             self.E_gs = self.E_ref*self.model.graph.n_nodes*4
 
+        self.E_gs_per_site = self.E_gs/self.model.graph.n_nodes/4
             # except:
             #     raise(FileNotFoundError(f'Error while retrieving reference energy for {self.model.name}, at coupling {self.model.h} and L {self.model.graph.n_nodes**(1/self.model.graph.ndim)} '))
             

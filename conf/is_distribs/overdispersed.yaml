@@ -1,2 +1,0 @@
-_target_ : auto_importance.driver.overdispersed_distribution
-  alpha : 2.0
