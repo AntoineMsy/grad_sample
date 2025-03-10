@@ -19,4 +19,4 @@ use_symmetries : false
 auto_is: false
 run_index : null
 # base_path : /mnt/beegfs/workdir/antoine.misery/grad_sample
-base_path : /lustre/fsn1/projects/rech/rgs/uur87qh/vit_runs/
+base_path : /lustre/fsn1/projects/rech/rgs/uur87qh/vit_runs_random/

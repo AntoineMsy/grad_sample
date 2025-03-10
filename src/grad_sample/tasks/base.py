@@ -7,6 +7,7 @@ import netket as nk
 import optax
 import scipy
 import jax.numpy as jnp
+import numpy as np
 import jax
 from grad_sample.utils.utils import save_cb, e_diag
 
@@ -115,8 +116,8 @@ class Problem:
     
         if self.lr == "schedule":
             lr_schedule = optax.cosine_decay_schedule(
-                                                    init_value=1e-3,
-                                                    decay_steps=2000,
+                                                    init_value=2e-3,
+                                                    decay_steps=3000,
                                                     alpha=0.1
                                                 ) #moves the lr from 1e-3 to 1e-4
             self.opt = optax.sgd(learning_rate=lr_schedule)
@@ -147,7 +148,7 @@ class Problem:
                                                              sweep_size=self.model.graph.n_nodes, 
                                                              n_chains_per_rank=self.Nsample // 2
                                                              )
-            self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample, seed=0)
+            self.vstate = nk.vqs.MCState(sampler= self.sampler, model=self.ansatz, chunk_size= self.chunk_size, n_samples= self.Nsample)
             print("MC state loaded, num samples %d"%self.Nsample)
 
         if "LogStateVector" in self.cfg.ansatz._target_:
@@ -155,7 +156,7 @@ class Problem:
 
         # Choose between SR and SRt automatically
         params = self.ansatz.init(
-            jax.random.PRNGKey(5), jnp.zeros((1, self.model.graph.n_nodes))
+            jax.random.PRNGKey(np.random.randint(10000)), jnp.zeros((1, self.model.graph.n_nodes))
         )
         max_nparams = nk.jax.tree_size(params)
         print(max_nparams)

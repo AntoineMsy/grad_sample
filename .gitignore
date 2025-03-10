@@ -9,6 +9,8 @@ wheels/
 *.npz
 *.gz
 *.pb
+*.png
+*.pdf
 
 # Virtual environments
 .venv
