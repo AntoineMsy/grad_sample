@@ -12,7 +12,7 @@ from grad_sample.utils.utils import save_cb
 from netket.vqs import FullSumState
 import json
 import matplotlib.pyplot as plt
-from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha
+from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha, compute_snr_callback
 from functools import partial
 import auto_importance as advd
 import optax
@@ -96,11 +96,11 @@ class Trainer(Problem):
             self.out_log = (self.json_log,)
 
         try:
-            n_states = self.state.hilbert.n_states
+            n_states = self.vstate.hilbert.n_states
             self.save_rel_err_cb = partial(save_rel_err_fs, 
                                            e_gs = self.E_gs, 
                                            fs_state = self.fs_state_rel_err, 
-                                           save_every=25, 
+                                           save_every=2, 
                                            output_dir=self.output_dir)
         except:
             print('Hilbert space too large to be indexed, using reference energy callback')
@@ -114,6 +114,13 @@ class Trainer(Problem):
         else:  
             self.callbacks=(self.save_rel_err_cb,)
 
+        self.compute_snr_cb = partial(compute_snr_callback, 
+                                      fs_state = self.fs_state_rel_err,
+                                      H_sp = self.gs._ham.to_sparse(),
+                                      save_every=2
+                                     )                             
+
+        self.callbacks = (self.save_rel_err_cb, self.compute_snr_cb)     
     def __call__(self):
 
         if not self.use_symmetries:

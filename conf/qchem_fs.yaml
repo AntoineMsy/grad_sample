@@ -15,7 +15,7 @@ n_iter : 500
 sample_size : 0
 chunk_size_jac: 600
 chunk_size_vmap : 100
-save_every : 5
+save_every : null
 run_index : null
 # base_path : /scratch/.amisery/grad_sample_test/
-base_path : /qchem_test/ #will automatically save in the $SCRATCH folder
+base_path : /qchem_fs/ #will automatically save in the $SCRATCH folder

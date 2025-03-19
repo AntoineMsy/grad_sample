@@ -137,7 +137,7 @@ class Problem:
             lr_schedule = optax.cosine_decay_schedule(
                                         init_value=0.1,
                                         decay_steps=300,
-                                        alpha=0.1
+                                        alpha=0.01
                                         )
             self.opt = optax.sgd(learning_rate=lr_schedule)
         else:
@@ -199,7 +199,7 @@ class Problem:
                                                                         use_ntk = self.use_ntk,
                                                                         on_the_fly = False,
                                                                         auto_is = self.auto_is)
-        print(self.model.name)      
+      
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"

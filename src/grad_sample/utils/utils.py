@@ -2,9 +2,10 @@ import netket.jax as nkjax
 from scipy.sparse.linalg import eigsh
 from netket.vqs import FullSumState
 import jax.numpy as jnp
-import matplotlib.pyplot as plt
 from grad_sample.is_hpsi.expect import snr_comp
 import copy
+import jax
+
 
 def cumsum(lst):
     cumulative_sum = []
@@ -121,3 +122,69 @@ def find_closest_saved_vals(E_err, saved_vals, save_every, n_vals_per_scale=1):
             error_val.append(E_err[saved_index*save_every])
     return closest_saved_vals, error_val
 
+def compute_snr_callback(step, logdata, driver, fs_state:FullSumState, H_sp, save_every=10, chunk_size_jac=200):
+    # estimate local grad
+    if step % save_every == 0:
+        # fs_state = FullSumState(hilbert = driver.state.hilbert, model = driver.state.model, chunk_size=None, seed=0)
+        fs_state.variables = copy.deepcopy(driver.state.variables)
+        pdf = fs_state.probability_distribution()
+        vstate_arr = fs_state.to_array()
+        Hloc = H_sp @ vstate_arr / vstate_arr
+        Hloc_c = (Hloc - jnp.sum(Hloc*pdf))
+        mode = "complex"
+        # uncentered jacobian
+        jacobian_orig = nkjax.jacobian(
+            fs_state._apply_fun,
+            fs_state.parameters,
+            fs_state.hilbert.all_states(), #in MC state, this is vstate.samples
+            fs_state.model_state,
+            pdf=pdf,
+            mode=mode,
+            dense=True,
+            center=False,
+            chunk_size=200,
+            _sqrt_rescale=False, #(not) rescaled by sqrt[π(x)], but in MC this rescales by 1/sqrt[N_mc]
+        )
+
+        # (#ns, 2) -> (#ns*2)
+        Hloc_2 = jnp.stack([jnp.real(Hloc_c), jnp.imag(Hloc_c)], axis=-1)
+        Hloc_c = jax.lax.collapse(Hloc_2, 0, 2)
+        jacobian_orig_c = jacobian_orig - jnp.sum(jacobian_orig*jnp.expand_dims(pdf, range(len(jacobian_orig.shape))[1:]),axis=0)
+        jacobian_orig_c = jax.lax.collapse(jacobian_orig_c, 0, 2)
+        loc_grad_v = jacobian_orig_c.T * Hloc_c
+        loc_grad_v = loc_grad_v[:, ::2] + loc_grad_v[:, 1::2]
+        
+        # print(loc_grad_v.shape)
+        # n_p = loc_grad_v.shape[0]//2
+        # print(loc_grad_v_holo - (loc_grad_v[:n_p,:] + 1j* loc_grad_v[n_p:,:]))
+
+        mean_grad_unc = jnp.sum(jnp.abs(pdf * loc_grad_v), axis=0) / jnp.sum(jnp.abs(pdf * loc_grad_v))
+        
+        def unnorm_pdf(alpha):
+            return (jnp.abs(vstate_arr)**alpha)
+        
+        def compute_snr(q):
+            q_pdf = q / jnp.sum(q)
+            w_mean = jnp.sum(q_pdf * unnorm_pdf(2.0)/q)**2
+            v = jnp.sum(q_pdf * (unnorm_pdf(2.0)/q)**2 * jnp.abs(loc_grad_v - jnp.sum(pdf * loc_grad_v, axis=1)[:, None])**2, axis=1)/w_mean
+            return jnp.mean(jnp.abs(jnp.sum(pdf * loc_grad_v, axis = 1)) / jnp.sqrt(v))
+
+        a_vals = jnp.linspace(0.01, 2, 200)
+        snr_a = jnp.array([compute_snr(unnorm_pdf(a)) for a in a_vals])
+        
+        # Initialize a dummy carry (not used, but required)
+        init_carry = 0.0  
+
+        argmax_index = jnp.argmax(snr_a)
+        argmax_a = a_vals[argmax_index]
+        # print(jnp.mean(unnorm_pdf(2.0) * jnp.abs(loc_grad_v), axis=0).shape)
+        snr_grad = compute_snr(jnp.mean(unnorm_pdf(2.0) * jnp.abs(loc_grad_v), axis=0))
+        logdata['snr_a'] = snr_a[::20]
+        logdata['snr_grad'] = snr_grad
+        logdata['max_snr_a'] = jnp.max(snr_a)
+        logdata['argmax_snr_a'] = argmax_a
+        logdata['snr_psi_sq'] = compute_snr(unnorm_pdf(2.0))
+        # logdata['snr_hpsi'] = compute_snr(jnp.abs(driver._ham @ vstate_arr))
+        # logdata['grad_mag'] = jnp.mean(jnp.abs(loc_grad_v), axis=0)
+    return True
+        
