@@ -109,8 +109,10 @@ class Trainer(Problem):
                                             n_sites=self.model.graph.n_nodes, 
                                             save_every=50, 
                                             output_dir=self.output_dir)
-            
-        self.callbacks=(self.save_rel_err_cb,)
+        if self.sample_size == 0:
+            self.callbacks = (lambda *x: True)  
+        else:  
+            self.callbacks=(self.save_rel_err_cb,)
 
     def __call__(self):
 
@@ -171,13 +173,15 @@ class Trainer(Problem):
         log_opt = self.output_dir + ".log"
         data = json.load(open(log_opt))
         E=  jnp.array(data["Energy"]["Mean"]["real"])
+        
         if self.plot_training_curve and (self.E_gs != None):
             
             plt.plot(jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs), label= "MC")
-            e_r_fs = data["rel_err"]
-            plt.plot(e_r_fs["iters"], e_r_fs["value"], label= "FullSum")
+            
             try :
                 plt.title(f"Relative error w.r.t. exact GS during training, {self.Nsample} samples")
+                e_r_fs = data["rel_err"]
+                plt.plot(e_r_fs["iters"], e_r_fs["value"], label= "FullSum")
             except: 
                 plt.title(f"Relative error w.r.t. exact GS during training")
             plt.xlabel("iteration")

@@ -7,14 +7,17 @@ wheels/
 *.egg-info
 *.out
 *.npz
+*.npy
 *.gz
 *.pb
 *.png
 *.pdf
-
+*.mpack
+*.log
 # Virtual environments
 .venv
 
 # hydra config
 outputs/
+
 

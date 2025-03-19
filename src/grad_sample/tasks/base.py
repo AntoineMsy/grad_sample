@@ -33,7 +33,7 @@ class Problem:
         self.model = instantiate(self.cfg.model)
 
         # Instantiate ansatz
-        sym_group = self.model.graph.translation_group()
+       
         self.mode = "holomorphic"
 
         if "LogStateVector" in self.cfg.ansatz._target_:
@@ -41,6 +41,7 @@ class Problem:
             self.alpha = 0
 
         elif 'RBMSymm' in self.cfg.ansatz._target_:
+            sym_group = self.model.graph.translation_group()
             self.ansatz = nk.models.RBMSymm(alpha = self.cfg.ansatz.alpha, param_dtype=complex, symmetries = sym_group)
             self.alpha = self.ansatz.alpha
 
@@ -63,6 +64,11 @@ class Problem:
             self.ansatz = instantiate(self.cfg.ansatz, hidden_activations=[nk.nn.log_cosh]*len(self.cfg.ansatz.hidden_dims_alpha))
             self.alpha = self.ansatz.hidden_dims_alpha[0]
 
+        elif 'LogNeuralBackflow' in self.cfg.ansatz._target_:
+            self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hilbert_space)
+            self.alpha = self.cfg.ansatz.hidden_units
+            self.mode = 'complex'
+
         elif 'RBM' in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz)
             self.alpha = self.ansatz.alpha
@@ -70,6 +76,7 @@ class Problem:
                 self.mode = 'holomorphic'
             else :
                 self.mode = 'real'
+            
             
 
         dict_name = {"netket.models.RBM": "RBM",
@@ -79,7 +86,8 @@ class Problem:
          "grad_sample.ansatz.cnn.CNN": "CNN",
          "deepnets.net.ViT2D": "ViT2D",
          "deepnets.net.ViT1D": "ViT1D",
-         'netket.models.MLP': 'MLP'}
+         'netket.models.MLP': 'MLP',
+         'grad_sample.ansatz.nnbf.LogNeuralBackflow' : 'NNBF'}
          
         self.ansatz_name = dict_name[self.cfg.ansatz._target_]
 
@@ -89,20 +97,25 @@ class Problem:
         self.diag_shift = self.cfg.get("diag_shift")
         self.diag_exp = self.diag_shift
         self.n_iter = self.cfg.get('n_iter')
+        
         self.chunk_size_jac = self.cfg.get("chunk_size_jac")
         self.chunk_size_vmap = self.cfg.get("chunk_size_vmap")
+        self.chunk_size_vstate = self.cfg.get('chunk_size_vstate', None)
+
         self.save_every = self.cfg.get("save_every")
         self.base_path = self.cfg.get("base_path")
+        
+        try:
+            self.base_path = os.environ['SCRATCH'] + self.base_path
+        except:
+            print('scratch folder not specified in env variables')
+            self.base_path = "/scratch/.amisery" + self.base_path
 
         self.sample_size = self.cfg.get("sample_size")
         self.is_distrib = instantiate(self.cfg.is_distrib)
         self.auto_is = self.cfg.get("auto_is", False)
-
-        try:
-            self.use_symmetries = self.cfg.get("use_symmetries")
-        except:
-            self.use_symmetries = False
-
+        self.use_symmetries = self.cfg.get("use_symmetries", False)
+        
         if self.diag_shift == 'schedule':
             start_diag_shift, end_diag_shift = 1e-2, 1e-4
 
@@ -120,13 +133,26 @@ class Problem:
                                                     decay_steps=3000,
                                                     alpha=0.1
                                                 ) #moves the lr from 1e-3 to 1e-4
+            # for qchem
+            lr_schedule = optax.cosine_decay_schedule(
+                                        init_value=0.1,
+                                        decay_steps=300,
+                                        alpha=0.1
+                                        )
             self.opt = optax.sgd(learning_rate=lr_schedule)
         else:
             self.opt = optax.sgd(learning_rate=self.lr)
         # define optimizer
         # self.opt = optax.inject_hyperparams(optax.sgd)(learning_rate=self.lr) #used with autodiagshift
+        # Choose between SR and SRt automatically
+        rng_key_pars = jax.random.PRNGKey(np.random.randint(10000))
+        # rng_key_pars = jax.random.PRNGKey(5)
+        params = self.ansatz.init(
+            rng_key_pars, jnp.zeros((1, self.model.graph.n_nodes))
+        )
+        max_nparams = nk.jax.tree_size(params)
+        print(f"Nparams = {max_nparams}")
         
-
         if self.sample_size == 0:
             if self.chunk_size_jac < self.model.hilbert_space.n_states:
                 self.chunk_size = self.model.hilbert_space.n_states // (self.model.hilbert_space.n_states//self.chunk_size_jac)
@@ -140,6 +166,7 @@ class Problem:
         else:
             self.Nsample = 2**self.sample_size
             self.chunk_size = self.chunk_size_jac
+            self.use_ntk = max_nparams > self.Nsample
             if "Exact" in self.cfg.sampler._target_:
                 self.sampler = instantiate(self.cfg.sampler, hilbert= self.model.hilbert_space)
             elif 'Exchange' in self.cfg.sampler._target_:
@@ -159,17 +186,6 @@ class Problem:
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
 
-        # Choose between SR and SRt automatically
-        rng_key_pars = jax.random.PRNGKey(np.random.randint(10000))
-        # rng_key_pars = jax.random.PRNGKey(5)
-        params = self.ansatz.init(
-            rng_key_pars, jnp.zeros((1, self.model.graph.n_nodes))
-        )
-        max_nparams = nk.jax.tree_size(params)
-        print(max_nparams)
-        self.use_ntk = max_nparams > self.Nsample
-        
-
         self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, 
                                     solver=self.solver_fn, 
                                     diag_shift=self.diag_shift, 
@@ -183,11 +199,11 @@ class Problem:
                                                                         use_ntk = self.use_ntk,
                                                                         on_the_fly = False,
                                                                         auto_is = self.auto_is)
-                                                                        
+        print(self.model.name)      
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
             self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
-        if self.is_distrib.name == 'overdispersed':
+        elif self.is_distrib.name == 'overdispersed':
             if self.auto_is: 
                 self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
             else:
@@ -214,25 +230,34 @@ class Problem:
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
-        try :
-            self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
-            print("The ground state energy is:", self.E_gs)
-        except : 
-            self.E_gs = None
-            print('Hilbert space too large for exact diag, loading reference energy from litterature')
-            self.ref_energies = json.load(open("../../energy_ref_litt.json"))
-        
-            self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
-            if 'exact' in self.e_dict.keys():
-                self.E_ref = self.e_dict['exact']
-            elif 'qmc' in self.e_dict.keys():
-                self.E_ref = self.e_dict['qmc']
-            elif 'rbm+pp' in self.e_dict.keys():
-                self.E_ref = self.e_dict['rbm+pp']
-            else :
-                self.E_ref = self.e_dict['aochen']
-            print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
-            self.E_gs = self.E_ref*self.model.graph.n_nodes*4
+        if self.model.E_fci is not None:
+            self.E_gs = self.model.E_fci
+        else:
+            try :
+                try:
+                    self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+                    if 'exact' in self.e_dict.keys():
+                        self.E_ref = self.e_dict['exact']
+                    
+                except:
+                    self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
+                    print("The ground state energy is:", self.E_gs)
+            except : 
+                self.E_gs = None
+                print('Hilbert space too large for exact diag, loading reference energy from litterature')
+                self.ref_energies = json.load(open("../../energy_ref_litt.json"))
+            
+                self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+                if 'exact' in self.e_dict.keys():
+                    self.E_ref = self.e_dict['exact']
+                elif 'qmc' in self.e_dict.keys():
+                    self.E_ref = self.e_dict['qmc']
+                elif 'rbm+pp' in self.e_dict.keys():
+                    self.E_ref = self.e_dict['rbm+pp']
+                else :
+                    self.E_ref = self.e_dict['aochen']
+                print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
+                self.E_gs = self.E_ref*self.model.graph.n_nodes*4
 
         self.E_gs_per_site = self.E_gs/self.model.graph.n_nodes/4
             # except:

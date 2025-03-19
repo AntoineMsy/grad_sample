@@ -2,11 +2,12 @@ defaults:
   - _self_
   - model:  heisenberg2d
   - ansatz: vit
-  - sampler: exact
+  - sampler: exchange
+  - is_distrib: default
   - task: train
   - solver_fn: cholesky
 
-device: "1"
+device: "2"
 is_mode : 2.0
 lr : 0.001
 diag_shift : 1e-3

@@ -1,5 +1,4 @@
 #!/bin/bash
-
 # Fixed variables
 sample_size=9
 n_iter=8000

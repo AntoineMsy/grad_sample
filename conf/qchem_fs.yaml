@@ -1,7 +1,7 @@
 defaults:
   - _self_
-  - model:  xxz
-  - ansatz: rbm
+  - model: nitrogen
+  - ansatz: nnbf
   - task: train
   - solver_fn: cholesky
   - sampler: exact
@@ -9,13 +9,13 @@ defaults:
 
 device: '5'
 auto_is: false
-lr : 0.0022
-diag_shift : 1e-4
-n_iter : 2000
-sample_size : 10
-chunk_size_jac: 1024
+lr : schedule
+diag_shift : 2e-4
+n_iter : 500
+sample_size : 0
+chunk_size_jac: 600
 chunk_size_vmap : 100
-save_every : null
+save_every : 5
 run_index : null
 # base_path : /scratch/.amisery/grad_sample_test/
-base_path : /train_is_test/ #will automatically save in the $SCRATCH folder
+base_path : /qchem_test/ #will automatically save in the $SCRATCH folder
