@@ -230,7 +230,7 @@ class Problem:
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
-        if self.model.E_fci is not None:
+        if hasattr(self.model, 'E_fci') and self.model.E_fci is not None:
             self.E_gs = self.model.E_fci
         else:
             try :
