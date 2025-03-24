@@ -119,8 +119,9 @@ class Trainer(Problem):
                                       H_sp = self.gs._ham.to_sparse(),
                                       save_every=2
                                      )                             
-
-        self.callbacks = (self.save_rel_err_cb, self.compute_snr_cb)     
+        
+        self.callbacks = (self.save_rel_err_cb)     
+        # self.callbacks = (self.save_rel_err_cb, self.compute_snr_cb)     
     def __call__(self):
 
         if not self.use_symmetries:
