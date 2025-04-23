@@ -62,7 +62,7 @@ class MLP(nn.Module):
             x = nn.Dense(self.n_features, param_dtype=self.param_dtype, kernel_init=self.kernel_init)(x)
             x = self.hidden_activation(x)
         x = nn.Dense(self.n_out, param_dtype=self.param_dtype, kernel_init=self.kernel_init)(x)
-        x = nn.tanh(x)
+        x = self.out_activation(x)
         return x
 
 class LogNeuralBackflow(nn.Module):

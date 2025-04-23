@@ -10,11 +10,13 @@ from omegaconf import DictConfig, OmegaConf
 
 from grad_sample.utils.utils import save_cb
 from netket.vqs import FullSumState
+from netket.callbacks import InvalidLossStopping
 import json
 import matplotlib.pyplot as plt
-from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha, compute_snr_callback
+from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha, compute_snr_callback, save_sampler_state
 from functools import partial
-import auto_importance as advd
+# import auto_importance as advd
+import advanced_drivers as advd
 import optax
 
 def add_module(old_params: dict, new_params: dict, max_attempts: int = 10):
@@ -66,7 +68,7 @@ class Trainer(Problem):
             # symmetrized networks
             self.nets = [f(self.ansatz) for f in self.model.symmetrizing_functions]
             # implementation of vmc such that the schedulers can be changed for each optimization stage
-
+        print('creating driver')
         if self.sample_size !=0:
             self.gs = advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
                                             optimizer=self.opt, 
@@ -75,6 +77,8 @@ class Trainer(Problem):
                                             diag_shift=self.diag_shift, 
                                             auto_is=self.auto_is,
                                             use_ntk=self.use_ntk,
+                                            momentum=self.momentum,
+                                            collect_gradient_statistics=self.collect_gradient_statistics,
                                             on_the_fly=False)
         else: #use netket vmc bc advd not compatible with FS State yet
             self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
@@ -87,45 +91,49 @@ class Trainer(Problem):
                                              model = self.gs.state.model, 
                                              chunk_size=None, 
                                              seed=0)
-        
+        print('finished creating driver')
         # self.autodiagshift = advd.callbacks.PI_controller_diagshift(diag_shift_max=0.01, diag_shift_min=1e-6, safety_fac=1.0, clip_min=0.99, clip_max=1.01)
         
         if self.save_every != None:
             self.out_log = (self.json_log, self.state_log)
         else :
             self.out_log = (self.json_log,)
-
-        try:
-            n_states = self.vstate.hilbert.n_states
-            self.save_rel_err_cb = partial(save_rel_err_fs, 
-                                           e_gs = self.E_gs, 
-                                           fs_state = self.fs_state_rel_err, 
-                                           save_every=2, 
-                                           output_dir=self.output_dir)
-        except:
-            print('Hilbert space too large to be indexed, using reference energy callback')
-            self.save_rel_err_cb  = partial(save_rel_err_large, 
-                                            e_ref=self.E_gs_per_site, 
-                                            n_sites=self.model.graph.n_nodes, 
+        # print(self.vstate.hilbert.n_states)
+        # try:
+        #     n_states = self.vstate.hilbert.n_states
+        #     self.save_rel_err_cb = partial(save_rel_err_fs, 
+        #                                    e_gs = self.E_gs, 
+        #                                    fs_state = self.fs_state_rel_err, 
+        #                                    save_every=2, 
+        #                                    output_dir=self.output_dir)
+        # except:
+        #     print('Hilbert space too large to be indexed, using reference energy callback')
+            
+        # if self.sample_size == 0:
+        #     self.callbacks = (lambda *x: True)  
+        # else:  
+        #     self.callbacks=(self.save_rel_err_cb,)
+        self.save_rel_err_cb  = partial(save_rel_err_large, 
+                                            e_ref=self.E_gs, 
+                                            n_sites=None, 
                                             save_every=50, 
                                             output_dir=self.output_dir)
-        if self.sample_size == 0:
-            self.callbacks = (lambda *x: True)  
-        else:  
-            self.callbacks=(self.save_rel_err_cb,)
-
-        self.compute_snr_cb = partial(compute_snr_callback, 
-                                      fs_state = self.fs_state_rel_err,
-                                      H_sp = self.gs._ham.to_sparse(),
-                                      save_every=2
-                                     )                             
+        self.save_sampler = partial(save_sampler_state, out_prefix=self.output_dir, save_every=50)
+        self.callbacks = (InvalidLossStopping(), self.save_sampler, self.save_rel_err_cb)
+        # self.compute_snr_cb = partial(compute_snr_callback, 
+        #                               fs_state = self.fs_state_rel_err,
+        #                               H_sp = self.gs._ham.to_sparse(),
+        #                               save_every=2
+        #                              )                             
         
-        self.callbacks = (self.save_rel_err_cb)     
+        # self.callbacks = (self.save_rel_err_cb)     
         # self.callbacks = (self.save_rel_err_cb, self.compute_snr_cb)     
     def __call__(self):
-
+        
         if not self.use_symmetries:
+            print('calling run')
             self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=self.callbacks)
+           
 
         else:
             old_vars = None  # dummy

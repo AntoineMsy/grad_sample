@@ -1,11 +1,14 @@
 import netket.jax as nkjax
+import os
 from scipy.sparse.linalg import eigsh
 from netket.vqs import FullSumState
 import jax.numpy as jnp
 from grad_sample.is_hpsi.expect import snr_comp
 import copy
 import jax
-
+from advanced_drivers.driver import statistics
+from netket_checkpoint._src.serializers.metropolis import serialize_MetropolisSamplerState, deserialize_MetropolisSamplerState
+from flax.serialization import msgpack_serialize
 
 def cumsum(lst):
     cumulative_sum = []
@@ -51,19 +54,25 @@ def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1, output_
         #     plt.clf()
     return True
 
-def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=36, save_every=1, output_dir=None):
+def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**13, n_sites=None, save_every=1, output_dir=None):
     # compare an estimate of the energy with a large number of samples to a litterature reference
     n_s_orig = driver.state.n_samples
     driver.state.n_samples = n_s
     if driver.step_count % save_every == 0:
-        # e = fs_state.expect(driver._ham.operator).mean.real
-        try:
-            # is operator case
-            e = driver.state.expect(driver._ham.operator).mean.real
-        except: 
-            e = driver.state.expect(driver._ham).mean.real
-
-        logdata["rel_err"] = (e/4/n_sites -e_ref)/jnp.abs(e_ref)
+        g, l, w = driver.local_estimators()
+        energy = statistics(l,w)
+        e = energy.mean.real
+        logdata['MC2_mean'] = e
+        logdata['MC2_var'] = energy.variance
+        logdata['MC2_err'] = energy.error_of_mean
+        logdata['MC2_R_hat'] = energy.R_hat
+        logdata['MC2_tau'] = energy.tau_corr
+        
+        if n_sites != None:
+            logdata["rel_err"] = (e/4/n_sites -e_ref)/jnp.abs(e_ref)
+        else:
+            logdata["abs_err"] = jnp.abs(e-e_ref) #absolute error for qchem
+            logdata['rel_err'] = jnp.abs(e-e_ref)/jnp.abs(e_ref)
         # if output_dir!=None and driver.step_count % 2*save_every == 0:
         #     fig, ax = plt.subplots()
         #     e_r_fs = logdata["rel_err"]
@@ -76,6 +85,15 @@ def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=36, sa
         #     plt.savefig(output_dir + '/training_partial.png')
         #     plt.clf()
     driver.state.n_samples = n_s_orig
+    return True
+
+def save_sampler_state(step, logdata, driver, out_prefix, save_every=50):
+    if step % save_every ==0:
+        for chain_name, sampler_state in driver.state.sampler_states.items():
+            state_dict = serialize_MetropolisSamplerState(sampler_state)
+            binary_data = msgpack_serialize(state_dict)
+            with open(os.path.join(out_prefix, "sampler_state_%s.mpack"%chain_name), "wb") as outfile:
+                outfile.write(binary_data)
     return True
 
 def save_snr(step, logdata, driver, save_every=1):

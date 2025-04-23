@@ -7,15 +7,15 @@ defaults:
   - sampler: exact
   - is_distrib: overdispersed
 
-device: '5'
+device: null
 auto_is: false
 lr : 0.0022
 diag_shift : 1e-4
 n_iter : 2000
-sample_size : 10
+sample_size : 11
 chunk_size_jac: 1024
 chunk_size_vmap : 100
 save_every : null
 run_index : null
 # base_path : /scratch/.amisery/grad_sample_test/
-base_path : /train_is_test/ #will automatically save in the $SCRATCH folder
+base_path : /test_stats/ #will automatically save in the $SCRATCH folder

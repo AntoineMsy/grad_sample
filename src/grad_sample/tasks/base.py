@@ -5,17 +5,14 @@ import os
 import json
 import netket as nk
 import optax
-import scipy
+import flax
 import jax.numpy as jnp
 import numpy as np
 import jax
 from grad_sample.utils.utils import save_cb, e_diag
-
-from grad_sample.is_hpsi.qgt import QGTJacobianDenseImportanceSampling
-from grad_sample.is_hpsi.operator import IS_Operator
 from grad_sample.is_hpsi.expect import *
-import auto_importance as advd
-
+# import auto_importance as advd
+import advanced_drivers as advd
 from typing import Sequence
 def to_sequence(arg):
     # tranforms arguments into sequences if they're just single values
@@ -77,7 +74,6 @@ class Problem:
             else :
                 self.mode = 'real'
             
-            
 
         dict_name = {"netket.models.RBM": "RBM",
         'netket.models.RBMSymm': 'RBMSymm',             
@@ -104,12 +100,15 @@ class Problem:
 
         self.save_every = self.cfg.get("save_every")
         self.base_path = self.cfg.get("base_path")
-        
+        self.ckpt = self.cfg.get('ckpt')
+        self.momentum = self.cfg.get('momentum')
+        self.collect_gradient_statistics = self.cfg.get('collect_gradient_statistics', False)
         try:
             self.base_path = os.environ['SCRATCH'] + self.base_path
         except:
             print('scratch folder not specified in env variables')
-            self.base_path = "/scratch/.amisery" + self.base_path
+            self.base_path = '/mnt/beegfs/workdir/antoine.misery' + self.base_path
+            # self.base_path = "/scratch/.amisery" + self.base_path
 
         self.sample_size = self.cfg.get("sample_size")
         self.is_distrib = instantiate(self.cfg.is_distrib)
@@ -123,21 +122,32 @@ class Problem:
 
             self.diag_shift = optax.cosine_decay_schedule(
                 init_value=start_diag_shift,
-                decay_steps=2000,
+                decay_steps=400,
                 alpha=0.001
             ) #moves the diagonal shift from 1e-2 to 1e-4
-    
+
+            self.diag_shift = optax.linear_schedule(
+                init_value = 5e-3,
+                end_value = 1e-4,
+                transition_steps = 500
+            )
         if self.lr == "schedule":
             lr_schedule = optax.cosine_decay_schedule(
                                                     init_value=3e-3,
                                                     decay_steps=3000,
                                                     alpha=0.1
                                                 ) #moves the lr from 1e-3 to 1e-4
-            # for qchem
-            lr_schedule = optax.cosine_decay_schedule(
+            # for qchem, good one used first
+            # lr_schedule = optax.cosine_decay_schedule(
+            #                             init_value=0.1,
+            #                             decay_steps=1000,
+            #                             alpha=0.001
+            #                             )
+            
+            lr_schedule = optax.linear_schedule(
                                         init_value=0.1,
-                                        decay_steps=300,
-                                        alpha=0.01
+                                        transition_steps=self.n_iter//4,
+                                        end_value=0.01
                                         )
             self.opt = optax.sgd(learning_rate=lr_schedule)
         else:
@@ -167,18 +177,33 @@ class Problem:
             self.Nsample = 2**self.sample_size
             self.chunk_size = self.chunk_size_jac
             self.use_ntk = max_nparams > self.Nsample
+            # args for sampler
+            hi = self.model.hilbert_space
+            hi_size = hi.size
+            hamiltonian = self.model.hamiltonian
+            graph = self.model.graph
             if "Exact" in self.cfg.sampler._target_:
                 self.sampler = instantiate(self.cfg.sampler, hilbert= self.model.hilbert_space)
-            elif 'Exchange' in self.cfg.sampler._target_:
+            
+            elif 'Exchange' in self.cfg.sampler._target_ or 'Fermion' in self.cfg.sampler._target_:
                 self.sampler = instantiate(self.cfg.sampler, hilbert=self.model.hilbert_space, 
                                                              graph=self.model.graph, 
-                                                             sweep_size=self.model.graph.n_nodes, 
-                                                             n_chains_per_rank=self.Nsample // 2
+                                                             sweep_size=self.model.hilbert_space.size, 
+                                                             n_chains_per_rank=self.Nsample // 2,
                                                              )
+            else:
+                self.sampler = instantiate(self.cfg.sampler, 
+                                           hilbert=self.model.hilbert_space, 
+                                           hamiltonian=self.model.hamiltonian,
+                                           sweep_size=self.model.hilbert_space.size, 
+                                            n_chains_per_rank=self.Nsample // 2
+                                            )
+                
             self.vstate = nk.vqs.MCState(sampler= self.sampler, 
                                          model=self.ansatz, 
                                          chunk_size= self.chunk_size, 
                                          n_samples= self.Nsample,
+                                         n_discard_per_chain = 2**6
                                         #  seed=0
                                         )
             print("MC state loaded, num samples %d"%self.Nsample)
@@ -186,6 +211,20 @@ class Problem:
         if "LogStateVector" in self.cfg.ansatz._target_:
             self.vstate.init_parameters()
 
+        if self.ckpt is not None:
+            # with open(self.ckpt, 'rb') as f:
+            #     print(f.read())  
+            #     self.vstate = flax.serialization.from_bytes(self.vstate, f.read())
+            try:
+                with open(self.ckpt, 'rb') as f:
+                    vars = nk.experimental.vqs.variables_from_file(self.ckpt,
+                                                                    self.vstate.variables)
+                    # update the variables of vstate with the loaded data.
+                    self.vstate.variables = vars
+                
+                # self.vstate._sample(chain_length=2**15)
+            except:
+                print('bypassin checkpoint, invalid vars')
         self.sr = nk.optimizer.SR(qgt=nk.optimizer.qgt.QGTJacobianDense, 
                                     solver=self.solver_fn, 
                                     diag_shift=self.diag_shift, 
@@ -198,7 +237,9 @@ class Problem:
                                                                         diag_shift = dshift, 
                                                                         use_ntk = self.use_ntk,
                                                                         on_the_fly = False,
-                                                                        auto_is = self.auto_is)
+                                                                        collect_gradient_statistics=self.collect_gradient_statistics,
+                                                                        # auto_is = self.auto_i
+                                                                        )
       
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
