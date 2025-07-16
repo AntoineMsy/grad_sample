@@ -9,18 +9,32 @@ defaults:
 
 device: null
 auto_is: false
-lr : schedule
-diag_shift : schedule
-# end_diag_shift : 1e-5
-n_iter : 5000
-sample_size : 10
+
+lr:
+  _target_: optax.linear_schedule
+    init_value: 0.1
+    transition_steps: 1000
+    end_value: 0.01
+
+diag_shift:
+  _target_: optax.linear_schedule
+  init_value: 5e-3
+  end_value: 1e-5,
+  transition_steps: 500
+
+callbacks:
+  - callbacks/save_err_approx
+  - callbacks/save_sampler
+
 chunk_size_jac: 1024
 chunk_size_vstate: 8192
 chunk_size_vmap : 100
+
+n_iter : 5000
+sample_size : 13
 momentum : 0.9
 collect_gradient_statistics: false
 save_every : null
-run_index : null
 # ckpt: '/mnt/beegfs/home/CPHT/antoine.misery/workdir_link/qchem_test/166630_0/L30/NNBF/256/MC_12_0.8/schedule_0.0001/run_1.mpack'
 # base_path : /scratch/.amisery/grad_sample_test/
-base_path : /qchem_comp_new/ #will automatically save in the $SCRATCH folder
+base_path : /qchem_comp_newE/ #will automatically save in the $SCRATCH folder

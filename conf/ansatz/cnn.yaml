@@ -1,4 +1,9 @@
-_target_ : grad_sample.ansatz.cnn.CNN
-channels: [16, 32]
-kernel_size: [3,]
-# param_dtype: float
+_target_: deepnets.net.ptvmc.CNN
+# lattice: ${graph}
+kernel_size: 
+  - 3
+  - 3
+channels: 
+  - 10
+  - 10
+  - 10

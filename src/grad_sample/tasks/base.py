@@ -46,7 +46,7 @@ class Problem:
             self.ansatz = instantiate(self.cfg.ansatz, hilbert = self.model.hilbert_space)
             self.alpha = self.cfg.ansatz.layers
 
-        elif "cnn" in self.cfg.ansatz._target_:
+        elif "CNN" in self.cfg.ansatz._target_:
             self.ansatz = instantiate(self.cfg.ansatz, lattice=self.model.graph)
             self.alpha = len(self.cfg.ansatz.channels)
             self.mode = "complex" 
@@ -80,6 +80,7 @@ class Problem:
         "netket.models.LogStateVector": "log_state",
          "netket.experimental.models.LSTMNet": "RNN",
          "grad_sample.ansatz.cnn.CNN": "CNN",
+         'deepnets.net.ptvmc.CNN': 'CNN',
          "deepnets.net.ViT2D": "ViT2D",
          "deepnets.net.ViT1D": "ViT1D",
          'netket.models.MLP': 'MLP',
@@ -129,6 +130,11 @@ class Problem:
             self.diag_shift = optax.linear_schedule(
                 init_value = 5e-3,
                 end_value = 1e-4,
+                transition_steps = 500
+            )
+            self.diag_shift = optax.linear_schedule(
+                init_value = 5e-3,
+                end_value = 1e-5,
                 transition_steps = 500
             )
         if self.lr == "schedule":
@@ -237,6 +243,7 @@ class Problem:
                                                                         diag_shift = dshift, 
                                                                         use_ntk = self.use_ntk,
                                                                         on_the_fly = False,
+                                                                        momentum  = self.momentum,
                                                                         collect_gradient_statistics=self.collect_gradient_statistics,
                                                                         # auto_is = self.auto_i
                                                                         )

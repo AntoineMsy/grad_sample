@@ -19,6 +19,7 @@ class PCMolecule:
             self.compound = pcp.get_compounds(cid, "cid", record_type='3d')[0]
             self.geom = '3d'
         except : 
+            print('using 2d')
             self.compound = pcp.get_compounds(cid, "cid", record_type='2d')[0]
             self.geom = '2d'
         self.name = cid
@@ -46,7 +47,7 @@ class PCMolecule:
         mol.build()
 
         # 4. Run Hartree-Fock calculation
-        mf = scf.RHF(mol)
+        mf = scf.HF(mol)
         mf.kernel()
 
         cisd = ci.CISD(mf)
@@ -115,7 +116,8 @@ class PCMolecule:
         self.L = self.Ns
     
         # 5. Compute Full Configuration Interaction (FCI) energy
-        self.fci_dict = {166630 : -87.892693, 947: -107.660206}
+        # self.fci_dict = {166630 : -87.892693, 947: -107.660206}
+        self.fci_dict = {166630 : -87.89289424618677, 947: -107.660206}
         if self.cid in self.fci_dict.keys():
             self.E_fci = self.fci_dict[self.cid]
         else:

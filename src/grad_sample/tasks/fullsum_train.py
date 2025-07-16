@@ -18,6 +18,7 @@ from functools import partial
 # import auto_importance as advd
 import advanced_drivers as advd
 import optax
+import netket_checkpoint as nkc
 
 def add_module(old_params: dict, new_params: dict, max_attempts: int = 10):
     """
@@ -45,23 +46,24 @@ class Trainer(Problem):
 
         if self.use_symmetries:
             self.n_symm_stages = len(self.model.symmetrizing_functions)
-            self.lr_factor = 0.2
+            print(self.n_symm_stages)
+            self.lr_factor = 0.1
             self.diag_shift_factor = 1e-2
             self.lr_schedulers = [
                     optax.cosine_decay_schedule(
                         init_value=self.lr,
                         decay_steps=self.n_iter,
                         alpha=self.lr_factor,
-                        exponent=10,
+                        exponent=1,
                     )
                     for i in range(self.n_symm_stages)
                             ]   
             self.diag_shift_schedulers = [
-                optax.cosine_decay_schedule(
+                optax.exponential_decay(
                     init_value=self.diag_shift,
-                    decay_steps=self.n_iter,
-                    alpha=self.diag_shift_factor,
-                    exponent=10,
+                    transition_steps=self.n_iter//2,
+                    decay_rate=0.96,
+                    end_value = self.diag_shift * self.diag_shift_factor
                 )
                 for i in range(self.n_symm_stages)
             ]
@@ -118,16 +120,22 @@ class Trainer(Problem):
                                             n_sites=None, 
                                             save_every=50, 
                                             output_dir=self.output_dir)
-        self.save_sampler = partial(save_sampler_state, out_prefix=self.output_dir, save_every=50)
-        self.callbacks = (InvalidLossStopping(), self.save_sampler, self.save_rel_err_cb)
+        self.save_sampler = partial(save_sampler_state, out_prefix=self.output_dir, save_every=250)
+        options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=100, keep_period=20)
+        os.mkdir(os.path.join(self.output_dir, "ckpt"))
+        ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, "ckpt"), options=options)
+        ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
+
+        self.callbacks = (InvalidLossStopping(), ckpt_cb)
+        
         # self.compute_snr_cb = partial(compute_snr_callback, 
         #                               fs_state = self.fs_state_rel_err,
         #                               H_sp = self.gs._ham.to_sparse(),
-        #                               save_every=2
+        #                               save_every=50
         #                              )                             
         
         # self.callbacks = (self.save_rel_err_cb)     
-        # self.callbacks = (self.save_rel_err_cb, self.compute_snr_cb)     
+        # self.callbacks = (InvalidLossStopping(), self.save_rel_err_cb, self.compute_snr_cb)     
     def __call__(self):
         
         if not self.use_symmetries:
@@ -151,12 +159,8 @@ class Trainer(Problem):
                     # n_discard_per_chain=self.n_discard_per_chain,
                     chunk_size=self.chunk_size,
                 )
-                self.fs_state_rel_err = FullSumState(hilbert = self.vstate.hilbert, model = self.vstate.model, chunk_size=None, seed=0)
-       
-                if self.E_gs != None:
-                    self.callbacks=(self.save_rel_err_cb(self.fs_state_rel_err),)
-                else:
-                    self.callbacks = None
+                # self.fs_state_rel_err = FullSumState(hilbert = self.vstate.hilbert, model = self.vstate.model, chunk_size=None, seed=0)
+
                 if i > 0:
                     updated_params = add_module(
                         old_params=old_vars["params"],

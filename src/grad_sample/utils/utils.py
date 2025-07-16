@@ -54,7 +54,7 @@ def save_rel_err_fs(step, logdata, driver, fs_state, e_gs, save_every=1, output_
         #     plt.clf()
     return True
 
-def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**13, n_sites=None, save_every=1, output_dir=None):
+def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=None, save_every=1, output_dir=None):
     # compare an estimate of the energy with a large number of samples to a litterature reference
     n_s_orig = driver.state.n_samples
     driver.state.n_samples = n_s
