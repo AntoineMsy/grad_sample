@@ -11,7 +11,6 @@ import numpy as np
 import jax
 from grad_sample.utils.utils import save_cb, e_diag
 from grad_sample.is_hpsi.expect import *
-# import auto_importance as advd
 import advanced_drivers as advd
 from typing import Sequence
 def to_sequence(arg):
@@ -195,21 +194,21 @@ class Problem:
                 self.sampler = instantiate(self.cfg.sampler, hilbert=self.model.hilbert_space, 
                                                              graph=self.model.graph, 
                                                              sweep_size=self.model.hilbert_space.size, 
-                                                             n_chains_per_rank=self.Nsample // 2,
+                                                             n_chains=self.Nsample // 2,
                                                              )
             else:
                 self.sampler = instantiate(self.cfg.sampler, 
                                            hilbert=self.model.hilbert_space, 
                                            hamiltonian=self.model.hamiltonian,
                                            sweep_size=self.model.hilbert_space.size, 
-                                            n_chains_per_rank=self.Nsample // 2
+                                            n_chains=self.Nsample // 2
                                             )
                 
             self.vstate = nk.vqs.MCState(sampler= self.sampler, 
                                          model=self.ansatz, 
                                          chunk_size= self.chunk_size, 
                                          n_samples= self.Nsample,
-                                         n_discard_per_chain = 2**6
+                                         n_discard_per_chain = 1
                                         #  seed=0
                                         )
             print("MC state loaded, num samples %d"%self.Nsample)
@@ -245,7 +244,7 @@ class Problem:
                                                                         on_the_fly = False,
                                                                         momentum  = self.momentum,
                                                                         collect_gradient_statistics=self.collect_gradient_statistics,
-                                                                        # auto_is = self.auto_i
+                                                                        auto_is = self.auto_is
                                                                         )
       
         # code only support default and overdispersed distribution for naming right now

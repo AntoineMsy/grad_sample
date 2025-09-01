@@ -15,7 +15,6 @@ import json
 import matplotlib.pyplot as plt
 from grad_sample.utils.utils import save_rel_err_fs, save_snr, save_rel_err_large, save_alpha, compute_snr_callback, save_sampler_state
 from functools import partial
-# import auto_importance as advd
 import advanced_drivers as advd
 import optax
 import netket_checkpoint as nkc
@@ -80,7 +79,7 @@ class Trainer(Problem):
                                             auto_is=self.auto_is,
                                             use_ntk=self.use_ntk,
                                             momentum=self.momentum,
-                                            collect_gradient_statistics=self.collect_gradient_statistics,
+                                            # collect_gradient_statistics=self.collect_gradient_statistics,
                                             on_the_fly=False)
         else: #use netket vmc bc advd not compatible with FS State yet
             self.gs = nk.VMC(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
@@ -121,12 +120,7 @@ class Trainer(Problem):
                                             save_every=50, 
                                             output_dir=self.output_dir)
         self.save_sampler = partial(save_sampler_state, out_prefix=self.output_dir, save_every=250)
-        options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=100, keep_period=20)
-        os.mkdir(os.path.join(self.output_dir, "ckpt"))
-        ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, "ckpt"), options=options)
-        ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
-
-        self.callbacks = (InvalidLossStopping(), ckpt_cb)
+       
         
         # self.compute_snr_cb = partial(compute_snr_callback, 
         #                               fs_state = self.fs_state_rel_err,
@@ -135,7 +129,7 @@ class Trainer(Problem):
         #                              )                             
         
         # self.callbacks = (self.save_rel_err_cb)     
-        # self.callbacks = (InvalidLossStopping(), self.save_rel_err_cb, self.compute_snr_cb)     
+        self.callbacks = (InvalidLossStopping())     
     def __call__(self):
         
         if not self.use_symmetries:
@@ -169,9 +163,14 @@ class Trainer(Problem):
                     old_vars["params"] = updated_params
                     self.vstate.variables = old_vars
                     assert old_vars == self.vstate.variables
-
-                optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[i])
                 
+                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter, keep_period=20)
+                os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
+                ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt{i}"), options=options)
+                ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
+
+                self.callbacks = (InvalidLossStopping(), ckpt_cb)
+                optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[i])
                 driver = self.gs_func(
                     optimizer,
                     self.diag_shift_schedulers[i],

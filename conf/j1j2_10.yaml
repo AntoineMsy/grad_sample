@@ -1,14 +1,12 @@
 defaults:
   - _self_
   - model: j1j2
-  - ansatz: vit
+  - ansatz: vit_xl
   - task: train
   - solver_fn: cholesky
   - sampler: exchange
   - is_distrib: overdispersed
 
-# model:
-#   L: 6
 device: null
 auto_is: true
 lr : 0.01
@@ -18,6 +16,7 @@ sample_size : 12
 chunk_size_jac: 1024
 save_every : null
 run_index : null
-use_symmetries : true
+use_symmetries : false
+momentum : 0.9
 # base_path : /scratch/.amisery/grad_sample_test/
 base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
