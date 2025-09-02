@@ -8,14 +8,14 @@ import jax
 import einops
 
 from collections.abc import Sequence
-from deepnets.system.base import Spin_Half
-from deepnets.system.utils import reflect_and_translate, reflect_and_translate_group
+from grad_sample.models.system.base import Spin_Half
+from spin_vmc.system.utils import reflect_and_translate, reflect_and_translate_group
 from netket.utils.group._point_group import PointGroup
 from netket.utils.group import PermutationGroup, Identity
-from netket.graph.space_group import SpaceGroupBuilder
+from netket.graph.space_group import SpaceGroup
 from netket.utils.types import Array
 from netket.nn.blocks import SymmExpSum
-from deepnets.nn.blocks import FlipExpSum
+from nqs_nets.blocks import FlipExpSum
 
 
 class Square_Heisenberg(Spin_Half):
@@ -117,7 +117,7 @@ class Square_Heisenberg(Spin_Half):
         }
         # Get translation symmetries if patching
         if patching:
-            spacegroupbuilder = SpaceGroupBuilder(
+            spacegroupbuilder = SpaceGroup(
                 self.graph, nk.utils.group.trivial_point_group(ndim=2)
             )
             trans_x = spacegroupbuilder._translations_along_axis(0)[1]  # translation +x

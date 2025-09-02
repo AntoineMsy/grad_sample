@@ -1,8 +1,7 @@
-_target_ : deepnets.net.ViT2D
+_target_ : nqs_nets.net.ViTNd
 depth: 8
 d_model: 72
 heads: 12
-linear_patch_size: 2
 # output_head_name: "RBMnoLayer" #Vanilla/NoPatching
-output_head_name: "Vanilla" #Vanilla/NoPatching
+output_head: "Vanilla" #Vanilla/NoPatching
 expansion_factor: 1

@@ -11,7 +11,6 @@ import numpy as np
 import jax
 from grad_sample.utils.utils import save_cb, e_diag
 from grad_sample.is_hpsi.expect import *
-# import auto_importance as advd
 import advanced_drivers as advd
 from typing import Sequence
 def to_sequence(arg):
@@ -82,6 +81,7 @@ class Problem:
          "grad_sample.ansatz.cnn.CNN": "CNN",
          'deepnets.net.ptvmc.CNN': 'CNN',
          "deepnets.net.ViT2D": "ViT2D",
+         "nqs_nets.net.ViTNd" : 'ViT',
          "deepnets.net.ViT1D": "ViT1D",
          'netket.models.MLP': 'MLP',
          'grad_sample.ansatz.nnbf.LogNeuralBackflow' : 'NNBF'}
@@ -195,21 +195,21 @@ class Problem:
                 self.sampler = instantiate(self.cfg.sampler, hilbert=self.model.hilbert_space, 
                                                              graph=self.model.graph, 
                                                              sweep_size=self.model.hilbert_space.size, 
-                                                             n_chains_per_rank=self.Nsample // 2,
+                                                             n_chains=self.Nsample // 2,
                                                              )
             else:
                 self.sampler = instantiate(self.cfg.sampler, 
                                            hilbert=self.model.hilbert_space, 
                                            hamiltonian=self.model.hamiltonian,
                                            sweep_size=self.model.hilbert_space.size, 
-                                            n_chains_per_rank=self.Nsample // 2
+                                            n_chains=self.Nsample // 2
                                             )
                 
             self.vstate = nk.vqs.MCState(sampler= self.sampler, 
                                          model=self.ansatz, 
                                          chunk_size= self.chunk_size, 
                                          n_samples= self.Nsample,
-                                         n_discard_per_chain = 2**6
+                                         n_discard_per_chain = 1
                                         #  seed=0
                                         )
             print("MC state loaded, num samples %d"%self.Nsample)
@@ -238,26 +238,26 @@ class Problem:
         
         self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
                                                                         optimizer=opt, 
-                                                                        sampling_distribution=self.is_distrib,
+                                                                        importance_sampling_distribution=self.is_distrib,
                                                                         variational_state=vstate, 
                                                                         diag_shift = dshift, 
                                                                         use_ntk = self.use_ntk,
                                                                         on_the_fly = False,
                                                                         momentum  = self.momentum,
-                                                                        collect_gradient_statistics=self.collect_gradient_statistics,
-                                                                        # auto_is = self.auto_i
+                                                                        # collect_gradient_statistics=self.collect_gradient_statistics,
+                                                                        auto_is = self.auto_is
                                                                         )
       
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
         elif self.is_distrib.name == 'overdispersed':
             if self.auto_is: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
         elif self.is_distrib.name == 'default':
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.h}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
         else:
             raise NotImplementedError()
         
@@ -283,7 +283,7 @@ class Problem:
         else:
             try :
                 try:
-                    self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+                    self.e_dict = self.ref_energies[self.model.name][str(self.model.J)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
                     if 'exact' in self.e_dict.keys():
                         self.E_ref = self.e_dict['exact']
                     
@@ -295,7 +295,7 @@ class Problem:
                 print('Hilbert space too large for exact diag, loading reference energy from litterature')
                 self.ref_energies = json.load(open("../../energy_ref_litt.json"))
             
-                self.e_dict = self.ref_energies[self.model.name][str(self.model.h)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+                self.e_dict = self.ref_energies[self.model.name][str(self.model.J)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
                 if 'exact' in self.e_dict.keys():
                     self.E_ref = self.e_dict['exact']
                 elif 'qmc' in self.e_dict.keys():

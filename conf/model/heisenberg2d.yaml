@@ -1,4 +1,4 @@
-_target_ : grad_sample.models.system.system.Square_Heisenberg
+_target_ : spin_vmc.system.SquareHeisenberg
 J: [1.0, 0.5]
 L: 4
 sign_rule: [0.0, 0.0]

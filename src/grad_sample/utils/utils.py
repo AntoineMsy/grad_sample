@@ -6,7 +6,8 @@ import jax.numpy as jnp
 from grad_sample.is_hpsi.expect import snr_comp
 import copy
 import jax
-from advanced_drivers.driver import statistics
+# from advanced_drivers.driver import statistics
+from netket.stats import statistics
 from netket_checkpoint._src.serializers.metropolis import serialize_MetropolisSamplerState, deserialize_MetropolisSamplerState
 from flax.serialization import msgpack_serialize
 
@@ -60,7 +61,8 @@ def save_rel_err_large(step, logdata, driver, e_ref, n_s = 2**15, n_sites=None, 
     driver.state.n_samples = n_s
     if driver.step_count % save_every == 0:
         g, l, w = driver.local_estimators()
-        energy = statistics(l,w)
+        # energy = statistics(l,w)
+        energy = statistics(l*w)
         e = energy.mean.real
         logdata['MC2_mean'] = e
         logdata['MC2_var'] = energy.variance
