@@ -278,24 +278,18 @@ class Problem:
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
+        self.ref_energies = json.load(open("../../energy_ref_litt.json"))
         if hasattr(self.model, 'E_fci') and self.model.E_fci is not None:
             self.E_gs = self.model.E_fci
         else:
             try :
-                try:
-                    self.e_dict = self.ref_energies[self.model.name][str(self.model.J)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
-                    if 'exact' in self.e_dict.keys():
-                        self.E_ref = self.e_dict['exact']
-                    
-                except:
-                    self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
-                    print("The ground state energy is:", self.E_gs)
+                self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
+                print("The ground state energy is:", self.E_gs)
             except : 
                 self.E_gs = None
                 print('Hilbert space too large for exact diag, loading reference energy from litterature')
-                self.ref_energies = json.load(open("../../energy_ref_litt.json"))
             
-                self.e_dict = self.ref_energies[self.model.name][str(self.model.J)][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+                self.e_dict = self.ref_energies[self.model.name][str(self.model.J[1])][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
                 if 'exact' in self.e_dict.keys():
                     self.E_ref = self.e_dict['exact']
                 elif 'qmc' in self.e_dict.keys():

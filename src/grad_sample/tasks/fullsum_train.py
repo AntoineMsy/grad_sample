@@ -147,10 +147,10 @@ class Trainer(Problem):
                 self.vstate = nk.vqs.MCState(
                     self.sampler,
                     model=self.nets[i],
-                    n_samples_per_rank=self.Nsample,
+                    n_samples=self.Nsample,
                     # seed=self.seed,
                     # sampler_seed=self.seed,
-                    # n_discard_per_chain=self.n_discard_per_chain,
+                    n_discard_per_chain=1,
                     chunk_size=self.chunk_size,
                 )
                 # self.fs_state_rel_err = FullSumState(hilbert = self.vstate.hilbert, model = self.vstate.model, chunk_size=None, seed=0)
@@ -170,23 +170,24 @@ class Trainer(Problem):
                 ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
 
                 self.callbacks = (InvalidLossStopping(), ckpt_cb)
+                # self.callbacks = (InvalidLossStopping())
                 optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[i])
                 driver = self.gs_func(
                     optimizer,
                     self.diag_shift_schedulers[i],
                     self.vstate,
                 )
-                if self.E_gs != None :
-                    driver.run(
-                        n_iter=self.n_iter,
-                        out=self.out_log,
-                        callback=self.callbacks,
-                    )
-                else :
-                    driver.run(
-                        n_iter=self.n_iter,
-                        out=self.out_log,
-                    )
+                # if self.E_gs != None :
+                driver.run(
+                    n_iter=self.n_iter,
+                    out=self.out_log,
+                    callback=self.callbacks,
+                )
+                # else :
+                #     driver.run(
+                #         n_iter=self.n_iter,
+                #         out=self.out_log,
+                #     )
                 old_vars = self.vstate.variables
 
         log_opt = self.output_dir + ".log"

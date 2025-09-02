@@ -1,4 +1,4 @@
 _target_ : spin_vmc.system.SquareHeisenberg
 J: [1.0, 0.5]
-L: 4
+L: 10
 sign_rule: [0.0, 0.0]
