@@ -129,17 +129,21 @@ class Trainer(Problem):
         #                              )                             
         
         # self.callbacks = (self.save_rel_err_cb)     
-        self.callbacks = (InvalidLossStopping())     
+        self.callbacks = (InvalidLossStopping())
+         
+        if self.ckpt_path is not None:
+            options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
+            self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=self.ckpt_path, options=options)
+                    
     def __call__(self):
         
         if not self.use_symmetries:
             print('calling run')
             self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=self.callbacks)
            
-
         else:
             old_vars = None  # dummy
-            for i in range(self.n_symm_stages):
+            for i in range(self.first_sym_stage, self.n_symm_stages):
                 print(
                     f"Symmetry stage {i}/{self.n_symm_stages-1}:"
                 )
@@ -150,7 +154,7 @@ class Trainer(Problem):
                     n_samples=self.Nsample,
                     # seed=self.seed,
                     # sampler_seed=self.seed,
-                    n_discard_per_chain=1,
+                    # n_discard_per_chain=1,
                     chunk_size=self.chunk_size,
                 )
                 # self.fs_state_rel_err = FullSumState(hilbert = self.vstate.hilbert, model = self.vstate.model, chunk_size=None, seed=0)
@@ -164,7 +168,7 @@ class Trainer(Problem):
                     self.vstate.variables = old_vars
                     assert old_vars == self.vstate.variables
                 
-                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter, keep_period=20)
+                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
                 os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
                 ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt{i}"), options=options)
                 ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
@@ -177,6 +181,8 @@ class Trainer(Problem):
                     self.diag_shift_schedulers[i],
                     self.vstate,
                 )
+                if i == self.first_sym_stage and self.ckpt_path is not None:
+                    driver.restore_checkpoint(self.ckpt_restore)
                 # if self.E_gs != None :
                 driver.run(
                     n_iter=self.n_iter,

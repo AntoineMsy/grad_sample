@@ -311,3 +311,6 @@ class Problem:
             self.state_log = nk.logging.StateLog(output_prefix=self.state_dir, save_every=self.save_every)
 
     
+        self.ckpt_path = os.path.expandvars(self.cfg["ckpt"]) if (self.cfg.get('ckpt') is not None) else None
+
+        self.first_sym_stage = self.cfg.get('first_sym_stage', 0)

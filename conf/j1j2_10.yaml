@@ -20,3 +20,5 @@ use_symmetries : true
 momentum : 0.9
 # base_path : /scratch/.amisery/grad_sample_test/
 base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
+sym_stage: 2
+# ckpt: $SCRATCH/j1j12_fs/SquareHeisenberg_[1.0, 0.5]/L100/ViT/8_72_12/MC_12_2.0/0.01_0.01/run_3/ckpt1
