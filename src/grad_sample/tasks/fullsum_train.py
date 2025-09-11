@@ -130,6 +130,7 @@ class Trainer(Problem):
         
         # self.callbacks = (self.save_rel_err_cb)     
         self.callbacks = (InvalidLossStopping())     
+        
     def __call__(self):
         
         if not self.use_symmetries:
@@ -150,7 +151,7 @@ class Trainer(Problem):
                     n_samples=self.Nsample,
                     # seed=self.seed,
                     # sampler_seed=self.seed,
-                    n_discard_per_chain=1,
+                    # n_discard_per_chain=1,
                     chunk_size=self.chunk_size,
                 )
                 # self.fs_state_rel_err = FullSumState(hilbert = self.vstate.hilbert, model = self.vstate.model, chunk_size=None, seed=0)
