@@ -130,19 +130,43 @@ class Trainer(Problem):
         
         # self.callbacks = (self.save_rel_err_cb)     
         self.callbacks = (InvalidLossStopping())
-         
-        if self.ckpt_path is not None:
-            options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
-            self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=self.ckpt_path, options=options)
-                    
+                   
     def __call__(self):
-        
         if not self.use_symmetries:
             print('calling run')
             self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=self.callbacks)
-           
+    
         else:
-            old_vars = None  # dummy
+            run_checkpointed = False
+            if self.ckpt_path is not None:
+                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
+                sym_restore = int(self.ckpt_path[-1])
+                self.vstate = nk.vqs.MCState(
+                    self.sampler,
+                    model=self.nets[sym_restore],
+                    n_samples=self.Nsample,
+                    # seed=self.seed,
+                    # sampler_seed=self.seed,
+                    # n_discard_per_chain=1,
+                    chunk_size=self.chunk_size,
+                )
+                optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[sym_restore])
+                driver = self.gs_func(
+                    optimizer,
+                    self.diag_shift_schedulers[sym_restore],
+                    self.vstate,
+                    self.is_distrib
+                )
+
+                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=self.ckpt_path, options=options)
+                driver.restore_checkpoint(self.ckpt_restore)
+                old_vars = self.vstate.variables
+                is_distrib = driver.importance_sampling_distribution
+                run_checkpointed=True
+            else:
+                old_vars = None # dummy
+                is_distrib = self.is_distrib
+
             for i in range(self.first_sym_stage, self.n_symm_stages):
                 print(
                     f"Symmetry stage {i}/{self.n_symm_stages-1}:"
@@ -159,7 +183,7 @@ class Trainer(Problem):
                 )
                 # self.fs_state_rel_err = FullSumState(hilbert = self.vstate.hilbert, model = self.vstate.model, chunk_size=None, seed=0)
 
-                if i > 0:
+                if i > 0 or run_checkpointed:
                     updated_params = add_module(
                         old_params=old_vars["params"],
                         new_params=self.vstate.variables["params"],
@@ -168,7 +192,7 @@ class Trainer(Problem):
                     self.vstate.variables = old_vars
                     assert old_vars == self.vstate.variables
                 
-                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
+                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter, keep_period=20)
                 os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
                 ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt{i}"), options=options)
                 ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
@@ -180,9 +204,9 @@ class Trainer(Problem):
                     optimizer,
                     self.diag_shift_schedulers[i],
                     self.vstate,
+                    is_distrib
                 )
-                if i == self.first_sym_stage and self.ckpt_path is not None:
-                    driver.restore_checkpoint(self.ckpt_restore)
+                jax.debug.print('new is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
                 # if self.E_gs != None :
                 driver.run(
                     n_iter=self.n_iter,
@@ -195,6 +219,8 @@ class Trainer(Problem):
                 #         out=self.out_log,
                 #     )
                 old_vars = self.vstate.variables
+                jax.debug.print('old is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
+                is_distrib = driver.importance_sampling_distribution
 
         log_opt = self.output_dir + ".log"
         data = json.load(open(log_opt))

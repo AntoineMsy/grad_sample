@@ -1,7 +1,7 @@
 defaults:
   - _self_
   - model: heisenberg2d
-  - ansatz: vit
+  - ansatz: vit_xl
   - task: train
   - solver_fn: cholesky
   - sampler: exchange
@@ -16,8 +16,9 @@ sample_size : 12
 chunk_size_jac: 1024
 save_every : null
 run_index : null
-use_symmetries : false
+use_symmetries : true
+momentum : 0.9
 # base_path : /scratch/.amisery/grad_sample_test/
 base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
-first_sym_stage: 0
-# ckpt: $SCRATCH/j1j12_fs/SquareHeisenberg_[1.0, 0.5]/L100/ViT/8_72_12/MC_12_2.0/0.01_0.01/run_3/ckpt1
+sym_stage: 1
+ckpt: $SCRATCH/j1j12_fs/SquareHeisenberg_0.5o/L100/ViT/8_72_12/MC_12_isauto/0.01_0.01/run_0/ckpt0

@@ -1,12 +1,18 @@
 defaults:
   - _self_
-  - model: heisenberg2d
-  - ansatz: vit
+  # - model: heisenberg2d
+  - ansatz: vit_xl
   - task: train
   - solver_fn: cholesky
   - sampler: exchange
   - is_distrib: overdispersed
 
+model:
+  _target_ : spin_vmc.system.SquareHeisenberg
+  J: [1.0, 0.5]
+  L: 6
+  sign_rule: [0.0, 0.0]
+  
 device: null
 auto_is: false
 lr : 0.01
@@ -16,7 +22,7 @@ sample_size : 12
 chunk_size_jac: 1024
 save_every : null
 run_index : null
-use_symmetries : false
+use_symmetries : true
 # base_path : /scratch/.amisery/grad_sample_test/
 base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
 first_sym_stage: 0

@@ -236,9 +236,9 @@ class Problem:
                                     diag_shift=self.diag_shift, 
                                     holomorphic= self.mode == "holomorphic")
         
-        self.gs_func = lambda opt, dshift, vstate : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
+        self.gs_func = lambda opt, dshift, vstate, is_distrib : advd.driver.VMC_NG(hamiltonian=self.model.hamiltonian.to_jax_operator(), 
                                                                         optimizer=opt, 
-                                                                        importance_sampling_distribution=self.is_distrib,
+                                                                        importance_sampling_distribution=is_distrib,
                                                                         variational_state=vstate, 
                                                                         diag_shift = dshift, 
                                                                         use_ntk = self.use_ntk,
@@ -250,14 +250,14 @@ class Problem:
       
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
         elif self.is_distrib.name == 'overdispersed':
             if self.auto_is: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
         elif self.is_distrib.name == 'default':
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
         else:
             raise NotImplementedError()
         
