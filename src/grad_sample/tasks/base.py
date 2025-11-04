@@ -1,14 +1,14 @@
+import jax
 from copy import deepcopy
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import call, instantiate
 import os
 import json
-import netket as nk
 import optax
 import flax
 import jax.numpy as jnp
 import numpy as np
-import jax
+import netket as nk
 from grad_sample.utils.utils import save_cb, e_diag
 from grad_sample.is_hpsi.expect import *
 import advanced_drivers as advd
@@ -90,9 +90,19 @@ class Problem:
 
         # set hparams and relevant variables
         self.solver_fn = call(self.cfg.solver_fn)
-        self.lr = self.cfg.get("lr")
-        self.diag_shift = self.cfg.get("diag_shift")
-        self.diag_exp = self.diag_shift
+        try:
+            self.lr = call(self.cfg.lr)
+            self.lr_name = 'schedule'
+        except:
+            self.lr = self.cfg.get("lr")
+            self.lr_name = self.lr
+        try:
+            self.diag_shift = call(self.cfg.diag_shift)
+            self.diag_exp = 'schedule'
+        except:
+            self.diag_shift = self.cfg.get("diag_shift") 
+            self.diag_exp = self.diag_shift
+        # self.diag_shift = self.cfg.get("diag_shift")
         self.n_iter = self.cfg.get('n_iter')
         
         self.chunk_size_jac = self.cfg.get("chunk_size_jac")
@@ -250,14 +260,14 @@ class Problem:
       
         # code only support default and overdispersed distribution for naming right now
         if self.sample_size == 0:
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/{self.lr_name}_{self.diag_exp}"
         elif self.is_distrib.name == 'overdispersed':
             if self.auto_is: 
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_isauto/{self.lr_name}_{self.diag_exp}"
             else:
-                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr}_{self.diag_exp}"
+                self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}_{self.is_distrib.q_variables['alpha'].item()}/{self.lr_name}_{self.diag_exp}"
         elif self.is_distrib.name == 'default':
-            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr}_{self.diag_exp}"
+            self.output_dir = self.base_path + f"/{self.model.name}_{self.model.J[1]}/L{self.model.graph.n_nodes}/{self.ansatz_name}/{self.alpha}/MC_{self.sample_size}/{self.lr_name}_{self.diag_exp}"
         else:
             raise NotImplementedError()
         
@@ -278,30 +288,30 @@ class Problem:
         os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
-        self.ref_energies = json.load(open("../../energy_ref_litt.json"))
-        if hasattr(self.model, 'E_fci') and self.model.E_fci is not None:
-            self.E_gs = self.model.E_fci
-        else:
-            try :
-                self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
-                print("The ground state energy is:", self.E_gs)
-            except : 
-                self.E_gs = None
-                print('Hilbert space too large for exact diag, loading reference energy from litterature')
+        # self.ref_energies = json.load(open("../../energy_ref_litt.json"))
+        # if hasattr(self.model, 'E_fci') and self.model.E_fci is not None:
+        #     self.E_gs = self.model.E_fci
+        # else:
+        #     try :
+        #         self.E_gs = e_diag(self.model.hamiltonian.to_sparse())
+        #         print("The ground state energy is:", self.E_gs)
+        #     except : 
+        #         self.E_gs = None
+        #         print('Hilbert space too large for exact diag, loading reference energy from litterature')
             
-                self.e_dict = self.ref_energies[self.model.name][str(self.model.J[1])][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
-                if 'exact' in self.e_dict.keys():
-                    self.E_ref = self.e_dict['exact']
-                elif 'qmc' in self.e_dict.keys():
-                    self.E_ref = self.e_dict['qmc']
-                elif 'rbm+pp' in self.e_dict.keys():
-                    self.E_ref = self.e_dict['rbm+pp']
-                else :
-                    self.E_ref = self.e_dict['aochen']
-                print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
-                self.E_gs = self.E_ref*self.model.graph.n_nodes*4
+        #         self.e_dict = self.ref_energies[self.model.name][str(self.model.J[1])][str(int(self.model.graph.n_nodes**(1/self.model.graph.ndim)))]
+        #         if 'exact' in self.e_dict.keys():
+        #             self.E_ref = self.e_dict['exact']
+        #         elif 'qmc' in self.e_dict.keys():
+        #             self.E_ref = self.e_dict['qmc']
+        #         elif 'rbm+pp' in self.e_dict.keys():
+        #             self.E_ref = self.e_dict['rbm+pp']
+        #         else :
+        #             self.E_ref = self.e_dict['aochen']
+        #         print('Ref energy %.4f'%(self.E_ref*self.model.graph.n_nodes*4))
+        #         self.E_gs = self.E_ref*self.model.graph.n_nodes*4
 
-        self.E_gs_per_site = self.E_gs/self.model.graph.n_nodes/4
+        # self.E_gs_per_site = self.E_gs/self.model.graph.n_nodes/4
             # except:
             #     raise(FileNotFoundError(f'Error while retrieving reference energy for {self.model.name}, at coupling {self.model.h} and L {self.model.graph.n_nodes**(1/self.model.graph.ndim)} '))
             

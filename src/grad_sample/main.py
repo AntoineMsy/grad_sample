@@ -5,7 +5,19 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+# import jax
 
+# # Initialize distributed JAX (works automatically with SLURM)
+# jax.distributed.initialize()
+
+# # Always print this to verify correct setup
+# print(f"[{jax.process_index()}/{jax.process_count()}] devices:", jax.devices(), flush=True)
+# print(f"[{jax.process_index()}/{jax.process_count()}] local devices:", jax.local_devices(), flush=True)
+# print(f"I will be running a calculation among {jax.process_count()} tasks, "
+#       f"using a total of {len(jax.devices())} devices "
+#       f"({len(jax.local_devices())} per slurm task). "
+#       f"If this does not match your expected number of total devices, "
+#       f"something is misconfigured", flush=True)
 import hydra
 import yaml
 from hydra.core.hydra_config import HydraConfig

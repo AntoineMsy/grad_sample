@@ -1,4 +1,5 @@
 import jax
+
 import jax.numpy as jnp
 
 import netket as nk
@@ -18,6 +19,12 @@ from functools import partial
 import advanced_drivers as advd
 import optax
 import netket_checkpoint as nkc
+
+import orbax.checkpoint as ocp
+
+from flax import serialization
+
+from netket_checkpoint._src.utils.orbax_utils import state_dict_to_restoreargs
 
 def add_module(old_params: dict, new_params: dict, max_attempts: int = 10):
     """
@@ -114,12 +121,12 @@ class Trainer(Problem):
         #     self.callbacks = (lambda *x: True)  
         # else:  
         #     self.callbacks=(self.save_rel_err_cb,)
-        self.save_rel_err_cb  = partial(save_rel_err_large, 
-                                            e_ref=self.E_gs, 
-                                            n_sites=None, 
-                                            save_every=50, 
-                                            output_dir=self.output_dir)
-        self.save_sampler = partial(save_sampler_state, out_prefix=self.output_dir, save_every=250)
+        # self.save_rel_err_cb  = partial(save_rel_err_large, 
+        #                                     e_ref=self.E_gs, 
+        #                                     n_sites=None, 
+        #                                     save_every=50, 
+        #                                     output_dir=self.output_dir)
+        # self.save_sampler = partial(save_sampler_state, out_prefix=self.output_dir, save_every=250)
        
         
         # self.compute_snr_cb = partial(compute_snr_callback, 
@@ -134,13 +141,20 @@ class Trainer(Problem):
     def __call__(self):
         if not self.use_symmetries:
             print('calling run')
+            options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//10, keep_period=20)
+            os.makedirs(os.path.join(self.output_dir, f"ckpt"), exist_ok=True)
+            ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt"), options=options)
+            ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
+
+            self.callbacks = (InvalidLossStopping(), ckpt_cb)
             self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=self.callbacks)
     
         else:
             run_checkpointed = False
             if self.ckpt_path is not None:
                 options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
-                sym_restore = int(self.ckpt_path[-1])
+                # sym_restore = int(self.ckpt_path[-1])
+                sym_restore = 1
                 self.vstate = nk.vqs.MCState(
                     self.sampler,
                     model=self.nets[sym_restore],
@@ -150,19 +164,43 @@ class Trainer(Problem):
                     # n_discard_per_chain=1,
                     chunk_size=self.chunk_size,
                 )
-                optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[sym_restore])
+                optimizer = nk.optimizer.Sgd(learning_rate=self.lr)
                 driver = self.gs_func(
                     optimizer,
-                    self.diag_shift_schedulers[sym_restore],
+                    self.diag_shift,
                     self.vstate,
                     self.is_distrib
                 )
 
-                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=self.ckpt_path, options=options)
-                driver.restore_checkpoint(self.ckpt_restore)
-                old_vars = self.vstate.variables
-                is_distrib = driver.importance_sampling_distribution
+                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.ckpt_path, 'ckpt1'), options=options)
+                chkptr = self.ckpt_restore.orbax_checkpointer()
+                driver_serialized = serialization.to_state_dict(driver)
+                state_serialized = driver_serialized.pop("state")
+                serialized_args = {
+                    "state": ocp.args.PyTreeRestore(
+                        state_dict_to_restoreargs(state_serialized, strict=False)
+                    ),
+                }
+                restored_data = chkptr.restore(
+                    chkptr.latest_step(), args=ocp.args.Composite(**serialized_args)
+                )
+                # restored_data["driver"]["state"] = restored_data["state"]
+                restored_state = serialization.from_state_dict(driver.state, restored_data["state"])
+                # driver.state = restored_state
+                old_vars = restored_state.variables
+                old_sampler_states = restored_state.sampler_states
+                is_distrib = self.is_distrib
+                if is_distrib.name == 'overdispersed':
+                    alpha = 1.4841505878468269 #hard coded bc don't know how to retrieve from sampler
+                    is_distrib.q_variables['alpha'] = jnp.array([alpha])
+                # driver = self.gs_func(
+                #     optimizer,
+                #     self.diag_shift,
+                #     restored_state,
+                #     is_distrib
+                # )
                 run_checkpointed=True
+
             else:
                 old_vars = None # dummy
                 is_distrib = self.is_distrib
@@ -190,19 +228,20 @@ class Trainer(Problem):
                     )
                     old_vars["params"] = updated_params
                     self.vstate.variables = old_vars
+                    self.vstate.sampler_states = old_sampler_states
                     assert old_vars == self.vstate.variables
                 
-                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter, keep_period=20)
+                options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
                 os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
                 ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt{i}"), options=options)
                 ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
 
                 self.callbacks = (InvalidLossStopping(), ckpt_cb)
                 # self.callbacks = (InvalidLossStopping())
-                optimizer = nk.optimizer.Sgd(learning_rate=self.lr_schedulers[i])
+                optimizer = nk.optimizer.Sgd(learning_rate=self.lr)
                 driver = self.gs_func(
                     optimizer,
-                    self.diag_shift_schedulers[i],
+                    self.diag_shift,
                     self.vstate,
                     is_distrib
                 )

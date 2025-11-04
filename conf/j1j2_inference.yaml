@@ -1,0 +1,8 @@
+defaults:
+  - _self_
+  - task: inference
+
+ckpt_path: '$SCRATCH/j1j12_fs/SquareHeisenberg_0.5/L100/ViT/8_72_12/MC_13_isauto/<function polynomial_schedule.<locals>.schedule at 0x14ae54f85080>_schedule/run_0'
+n_samples: 32768
+n_chains: 32
+chunk_size: 4096

@@ -22,7 +22,7 @@ sample_size : 12
 chunk_size_jac: 1024
 save_every : null
 run_index : null
-use_symmetries : true
+use_symmetries : false
 # base_path : /scratch/.amisery/grad_sample_test/
 base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
 first_sym_stage: 0
