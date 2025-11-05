@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-# import jax
+import jax
 
 # # Initialize distributed JAX (works automatically with SLURM)
 # jax.distributed.initialize()
@@ -18,6 +18,8 @@ from pathlib import Path
 #       f"({len(jax.local_devices())} per slurm task). "
 #       f"If this does not match your expected number of total devices, "
 #       f"something is misconfigured", flush=True)
+import netket as nk
+import netket_checkpoint as nkc
 import hydra
 import yaml
 from hydra.core.hydra_config import HydraConfig
@@ -61,8 +63,9 @@ def main(cfg: DictConfig):
         task()
 
     except Exception as e:
-        logging.critical(e, exc_info=True)
-        raise
+        if jax.process_index() == 0:
+            logging.critical(e, exc_info=True)
+            raise
 
 
 if __name__ == "__main__":

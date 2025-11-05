@@ -47,8 +47,9 @@ class Trainer(Problem):
     def __init__(self, cfg: DictConfig, plot_training_curve=True):
         super().__init__(cfg)
         # Save the current config to the custom path
-        with open(os.path.join(self.output_dir, "config.yaml"), "w") as f:
-            f.write(OmegaConf.to_yaml(self.cfg))
+        if jax.process_index() == 0:
+            with open(os.path.join(self.output_dir, "config.yaml"), "w") as f:
+                f.write(OmegaConf.to_yaml(self.cfg))
 
         if self.use_symmetries:
             self.n_symm_stages = len(self.model.symmetrizing_functions)
@@ -142,7 +143,8 @@ class Trainer(Problem):
         if not self.use_symmetries:
             print('calling run')
             options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//10, keep_period=20)
-            os.makedirs(os.path.join(self.output_dir, f"ckpt"), exist_ok=True)
+            if jax.process_index() == 0:
+                os.makedirs(os.path.join(self.output_dir, f"ckpt"), exist_ok=True)
             ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt"), options=options)
             ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
 
@@ -154,7 +156,7 @@ class Trainer(Problem):
             if self.ckpt_path is not None:
                 options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
                 # sym_restore = int(self.ckpt_path[-1])
-                sym_restore = 1
+                sym_restore = 2
                 self.vstate = nk.vqs.MCState(
                     self.sampler,
                     model=self.nets[sym_restore],
@@ -164,34 +166,48 @@ class Trainer(Problem):
                     # n_discard_per_chain=1,
                     chunk_size=self.chunk_size,
                 )
-                optimizer = nk.optimizer.Sgd(learning_rate=self.lr)
-                driver = self.gs_func(
-                    optimizer,
-                    self.diag_shift,
-                    self.vstate,
-                    self.is_distrib
-                )
+                # optimizer = nk.optimizer.Sgd(learning_rate=self.lr)
+                # driver = self.gs_func(
+                #     optimizer,
+                #     self.diag_shift,
+                #     self.vstate,
+                #     self.is_distrib
+                # )
 
-                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.ckpt_path, 'ckpt1'), options=options)
-                chkptr = self.ckpt_restore.orbax_checkpointer()
-                driver_serialized = serialization.to_state_dict(driver)
-                state_serialized = driver_serialized.pop("state")
-                serialized_args = {
-                    "state": ocp.args.PyTreeRestore(
-                        state_dict_to_restoreargs(state_serialized, strict=False)
-                    ),
-                }
-                restored_data = chkptr.restore(
-                    chkptr.latest_step(), args=ocp.args.Composite(**serialized_args)
-                )
+                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.ckpt_path, 'ckpt2'), options=options)
+                # OLD CODE
+                # chkptr = self.ckpt_restore.orbax_checkpointer()
+                # driver_serialized = serialization.to_state_dict(driver)
+                # state_serialized = driver_serialized.pop("state")
+                # serialized_args = {
+                #     "state": ocp.args.PyTreeRestore(
+                #         state_dict_to_restoreargs(state_serialized, strict=False)
+                #     ),
+                # }
+                # restored_data = chkptr.restore(
+                #     chkptr.latest_step(), args=ocp.args.Composite(**serialized_args)
+                # )
                 # restored_data["driver"]["state"] = restored_data["state"]
-                restored_state = serialization.from_state_dict(driver.state, restored_data["state"])
+                # restored_state = serialization.from_state_dict(driver.state, restored_data["state"])
                 # driver.state = restored_state
+                # initialise the sampler
+                distribution = self.is_distrib
+    
+                chain_name = distribution.name
+
+                if chain_name not in self.vstate.sampler_states:
+                    log_prob_p_fun, variables_p = distribution(self.vstate._apply_fun, self.vstate.variables)
+                    self.vstate.init_sampler_distribution(
+                        log_prob_p_fun,
+                        variables=variables_p,
+                        chain_name=chain_name,
+                    )
+                restored_state = self.ckpt_restore.restore_state(self.vstate)
                 old_vars = restored_state.variables
                 old_sampler_states = restored_state.sampler_states
                 is_distrib = self.is_distrib
                 if is_distrib.name == 'overdispersed':
-                    alpha = 1.4841505878468269 #hard coded bc don't know how to retrieve from sampler
+                    alpha = 1.458237462780727 #hard coded bc don't know how to retrieve from sampler
                     is_distrib.q_variables['alpha'] = jnp.array([alpha])
                 # driver = self.gs_func(
                 #     optimizer,
@@ -232,7 +248,8 @@ class Trainer(Problem):
                     assert old_vars == self.vstate.variables
                 
                 options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
-                os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
+                if jax.process_index() == 0:
+                    os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
                 ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt{i}"), options=options)
                 ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
 
@@ -245,7 +262,7 @@ class Trainer(Problem):
                     self.vstate,
                     is_distrib
                 )
-                jax.debug.print('new is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
+                # jax.debug.print('new is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
                 # if self.E_gs != None :
                 driver.run(
                     n_iter=self.n_iter,
@@ -258,36 +275,36 @@ class Trainer(Problem):
                 #         out=self.out_log,
                 #     )
                 old_vars = self.vstate.variables
-                jax.debug.print('old is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
+                # jax.debug.print('old is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
                 is_distrib = driver.importance_sampling_distribution
-
-        log_opt = self.output_dir + ".log"
-        data = json.load(open(log_opt))
-        E=  jnp.array(data["Energy"]["Mean"]["real"])
-        
-        if self.plot_training_curve and (self.E_gs != None):
+        if jax.process_index() == 0:
+            log_opt = self.output_dir + ".log"
+            data = json.load(open(log_opt))
+            E=  jnp.array(data["Energy"]["Mean"]["real"])
             
-            plt.plot(jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs), label= "MC")
+            if self.plot_training_curve and (self.E_gs != None):
+                
+                plt.plot(jnp.abs(E-self.E_gs)/jnp.abs(self.E_gs), label= "MC")
+                
+                try :
+                    plt.title(f"Relative error w.r.t. exact GS during training, {self.Nsample} samples")
+                    e_r_fs = data["rel_err"]
+                    plt.plot(e_r_fs["iters"], e_r_fs["value"], label= "FullSum")
+                except: 
+                    plt.title(f"Relative error w.r.t. exact GS during training")
+                plt.xlabel("iteration")
+                plt.ylabel("Relative error")
+                plt.yscale("log")
             
-            try :
-                plt.title(f"Relative error w.r.t. exact GS during training, {self.Nsample} samples")
-                e_r_fs = data["rel_err"]
-                plt.plot(e_r_fs["iters"], e_r_fs["value"], label= "FullSum")
-            except: 
-                plt.title(f"Relative error w.r.t. exact GS during training")
-            plt.xlabel("iteration")
-            plt.ylabel("Relative error")
-            plt.yscale("log")
-        
-        elif self.plot_training_curve:
-            
-            plt.plot(E, label= "MC Energy")
-            try :
-                plt.title(f"Energy during training, {self.Nsample} samples")
-            except: 
-                plt.title(f"Energy during training")
-            plt.xlabel("iteration")
-            plt.ylabel("Energy")
-            
-        plt.legend()
-        plt.savefig(self.output_dir + '/training.png')
+            elif self.plot_training_curve:
+                
+                plt.plot(E, label= "MC Energy")
+                try :
+                    plt.title(f"Energy during training, {self.Nsample} samples")
+                except: 
+                    plt.title(f"Energy during training")
+                plt.xlabel("iteration")
+                plt.ylabel("Energy")
+                
+            plt.legend()
+            plt.savefig(self.output_dir + '/training.png')

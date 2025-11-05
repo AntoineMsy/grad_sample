@@ -16,15 +16,15 @@ lr:
   end_value: 0.001
                          
 diag_shift: 1e-4
-n_iter : 2000
-sample_size : 13
-chunk_size_jac: 2048
+n_iter : 1000
+sample_size : 12
+chunk_size_jac: 1024
 save_every : null
 run_index : null
 use_symmetries : true
 # base_path : /scratch/.amisery/grad_sample_test/
 base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
-first_sym_stage: 2
-ckpt: '$SCRATCH/j1j12_fs/SquareHeisenberg_0.5/L100/ViT/8_72_12/MC_13_isauto/<function polynomial_schedule.<locals>.schedule at 0x14bb157a3c40>_0.0001/run_0'
-
+first_sym_stage: 3
+# ckpt: '$SCRATCH/j1j12_fs/SquareHeisenberg_0.5/L100/ViT/8_72_12/MC_13_isauto/<function polynomial_schedule.<locals>.schedule at 0x14bb157a3c40>_0.0001/run_0'
+ckpt: '$SCRATCH/j1j12_fs/SquareHeisenberg_0.5/L100/ViT/8_72_12/MC_13_isauto/schedule_0.0001/run_5'
 # ckpt: '$SCRATCH/j1j12_fs/SquareHeisenberg_0.5/L100/ViT/8_72_12/MC_13_isauto/<function polynomial_schedule.<locals>.schedule at 0x14ae54f85080>_schedule/run_0'

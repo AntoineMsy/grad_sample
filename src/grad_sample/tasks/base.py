@@ -191,6 +191,7 @@ class Problem:
             self.vstate = nk.vqs.FullSumState(hilbert=self.model.hilbert_space, model=self.ansatz, chunk_size=self.chunk_size, seed=0)
         else:
             self.Nsample = 2**self.sample_size
+            # self.Nsample = 6000
             self.chunk_size = self.chunk_size_jac
             self.use_ntk = max_nparams > self.Nsample
             # args for sampler
@@ -278,14 +279,13 @@ class Problem:
             while True:
                 run_dir = os.path.join(self.output_dir, f"run_{run_index}")
                 if not os.path.exists(run_dir):
-                    os.makedirs(run_dir)
                     self.output_dir = run_dir  # Update the output_dir to point to the newly created run_N folder
                     break
                 run_index += 1
         else :
             self.output_dir = self.output_dir + '/run_%d'%self.run_index
-
-        os.makedirs(self.output_dir, exist_ok=True)
+        if jax.process_index() == 0:
+            os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
         # self.ref_energies = json.load(open("../../energy_ref_litt.json"))
