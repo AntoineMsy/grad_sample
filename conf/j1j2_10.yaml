@@ -1,27 +1,27 @@
 defaults:
   - _self_
   - model: heisenberg2d
-  - ansatz: vit_xl
+  - ansatz: vit
   - task: train
   - solver_fn: cholesky
   - sampler: exchange
   - is_distrib: overdispersed
 
 device: null
-auto_is: false
-# lr:
-#   _target_: optax.linear_schedule
-#   init_value: 0.02
-#   transition_steps: 3000
-#   end_value: 0.002
-lr: 0.001    
-diag_shift: 1e-2
+auto_is: true
+lr:
+  _target_: optax.linear_schedule
+  init_value: 0.02
+  transition_steps: 3000
+  end_value: 0.002
+# lr: 0.001    
+# diag_shift: 1e-2
 
-# diag_shift:
-#   _target_: optax.linear_schedule
-#   init_value: 0.01
-#   transition_steps: 1000
-#   end_value: 0.0001
+diag_shift:
+  _target_: optax.linear_schedule
+  init_value: 0.01
+  transition_steps: 1000
+  end_value: 0.0001
 n_iter : 10000
 sample_size : 13
 chunk_size_jac: 2048
@@ -29,6 +29,6 @@ save_every : null
 run_index : null
 use_symmetries : false
 # base_path : /scratch/.amisery/grad_sample_test/
-base_path : /j1j12_fs/ #will automatically save in the $SCRATCH folder
+base_path : /j1j126_new/ #will automatically save in the $SCRATCH folder
 first_sym_stage: 0
 # ckpt: $SCRATCH/j1j12_fs/SquareHeisenberg_[1.0, 0.5]/L100/ViT/8_72_12/MC_12_2.0/0.01_0.01/run_3/ckpt1
