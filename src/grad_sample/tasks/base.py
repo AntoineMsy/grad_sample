@@ -274,6 +274,7 @@ class Problem:
         
         # create dir if it doesn't already exist, if not in analysis mode
         self.run_index = self.cfg.get("run_index")
+        # if jax.process_index() == 0:
         if self.run_index == None:
             run_index = 0
             while True:
@@ -284,10 +285,13 @@ class Problem:
                 run_index += 1
         else :
             self.output_dir = self.output_dir + '/run_%d'%self.run_index
-        if jax.process_index() == 0:
-            os.makedirs(self.output_dir, exist_ok=True)
+        # if jax.process_index() == 0:
+        os.makedirs(self.output_dir, exist_ok=True)
         print(self.output_dir)
         self.state_dir = self.output_dir + "/state"
+        # jax.distributed.barrier()
+        # jax.experimental.multihost_utils.sync_global_devices(name)
+
         # self.ref_energies = json.load(open("../../energy_ref_litt.json"))
         # if hasattr(self.model, 'E_fci') and self.model.E_fci is not None:
         #     self.E_gs = self.model.E_fci

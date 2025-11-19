@@ -19,7 +19,7 @@ from functools import partial
 import advanced_drivers as advd
 import optax
 import netket_checkpoint as nkc
-
+from netket_pro.distributed import declare_replicated_array
 import orbax.checkpoint as ocp
 
 from flax import serialization
@@ -138,7 +138,7 @@ class Trainer(Problem):
         
         # self.callbacks = (self.save_rel_err_cb)     
         self.callbacks = (InvalidLossStopping())
-                   
+        self.restored_stage = cfg.get('restored_stage',2)
     def __call__(self):
         if not self.use_symmetries:
             print('calling run')
@@ -149,6 +149,9 @@ class Trainer(Problem):
             ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
 
             self.callbacks = (InvalidLossStopping(), ckpt_cb)
+            self.gs._optimizer_state = jax.tree.map(
+                                    lambda x: declare_replicated_array(x),
+                                    driver._optimizer_state)
             self.gs.run(n_iter=self.n_iter, out=self.out_log, callback=self.callbacks)
     
         else:
@@ -156,10 +159,10 @@ class Trainer(Problem):
             if self.ckpt_path is not None:
                 options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
                 # sym_restore = int(self.ckpt_path[-1])
-                sym_restore = 2
+                
                 self.vstate = nk.vqs.MCState(
                     self.sampler,
-                    model=self.nets[sym_restore],
+                    model=self.nets[self.restored_stage],
                     n_samples=self.Nsample,
                     # seed=self.seed,
                     # sampler_seed=self.seed,
@@ -174,7 +177,7 @@ class Trainer(Problem):
                 #     self.is_distrib
                 # )
 
-                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.ckpt_path, 'ckpt2'), options=options)
+                self.ckpt_restore = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.ckpt_path, f'ckpt{self.restored_stage}'), options=options)
                 # OLD CODE
                 # chkptr = self.ckpt_restore.orbax_checkpointer()
                 # driver_serialized = serialization.to_state_dict(driver)
@@ -207,7 +210,7 @@ class Trainer(Problem):
                 old_sampler_states = restored_state.sampler_states
                 is_distrib = self.is_distrib
                 if is_distrib.name == 'overdispersed':
-                    alpha = 1.458237462780727 #hard coded bc don't know how to retrieve from sampler
+                    alpha = 1.4402 #hard coded bc don't know how to retrieve from sampler
                     is_distrib.q_variables['alpha'] = jnp.array([alpha])
                 # driver = self.gs_func(
                 #     optimizer,
@@ -248,8 +251,8 @@ class Trainer(Problem):
                     assert old_vars == self.vstate.variables
                 
                 options = nkc.checkpoint.CheckpointManagerOptions(save_interval_steps=self.n_iter//5, keep_period=20)
-                if jax.process_index() == 0:
-                    os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
+                # if jax.process_index() == 0:
+                os.makedirs(os.path.join(self.output_dir, f"ckpt{i}"), exist_ok=True)
                 ckpt = nkc.checkpoint.CheckpointManager(directory=os.path.join(self.output_dir, f"ckpt{i}"), options=options)
                 ckpt_cb = advd.callbacks.CheckpointCallback(ckpt)
 
@@ -262,6 +265,9 @@ class Trainer(Problem):
                     self.vstate,
                     is_distrib
                 )
+                driver._optimizer_state = jax.tree.map(
+                                    lambda x: declare_replicated_array(x),
+                                    driver._optimizer_state)
                 # jax.debug.print('new is distrib {x}', x = driver.importance_sampling_distribution.q_variables)
                 # if self.E_gs != None :
                 driver.run(
